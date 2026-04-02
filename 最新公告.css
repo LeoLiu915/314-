@@ -1,0 +1,456 @@
+/* <style>  */
+/* 自訂公告頁面 CSS白色模式 */
+.news-wrapper {
+  background: #ffffff;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.8);
+  max-width: 900px;
+  margin: 0 auto;
+  color: #111111;
+  font-family: 'Helvetica Neue', sans-serif;
+}
+
+.news-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #37c1eb;
+  text-align: center;
+  margin-bottom: 2rem;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 5px #20b5e2c0;
+}
+
+.news-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+}
+
+.news-item {
+  background: #e5e5e5;
+  padding: 1.8rem;
+  border-radius: 12px;
+  border: 2px solid #cccccc;
+  position: relative;
+  cursor: pointer;
+  opacity: 0;
+  /* 初始透明，用於淡入特效 */
+  animation: fadeIn 0.5s ease forwards;
+  /* 只保留淡入效果 */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.news-item:hover {
+  border-color: #36ccfa;
+  transform: translateY(-8px);
+  box-shadow: 0 8px 25px rgba(0, 150, 230, 0.2);
+}
+
+.news-item::after {
+  content: '點擊查看';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.8rem;
+  color: #3b3b3b;
+  transition: color 0.3s ease;
+}
+
+.news-item:hover::after {
+  color: #31b7e0;
+}
+
+.news-date {
+  font-size: 0.9rem;
+  color: #444;
+  margin-bottom: 0.6rem;
+}
+
+.news-tag {
+  display: inline-block;
+  background: #eb5477;
+  color: #111;
+  padding: 0.3rem 1rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.news-headline {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 0.6rem;
+}
+
+.news-author {
+  font-size: 1rem;
+  color: #444;
+  margin-bottom: 0.6rem;
+}
+
+.news-teaser {
+  font-size: 1.1rem;
+  color: #222;
+  display: block;
+}
+
+.news-full {
+  font-size: 1.1rem;
+  color: #333;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #444;
+}
+
+/* 新增「New」標籤樣式 */
+.news-new {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  background: #ffeb3b;
+  color: #121212;
+  padding: 0.3rem 0.8rem;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: bold;
+  animation: spinGlow 1.5s infinite ease-in-out;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+}
+
+@keyframes spinGlow {
+  0% {
+    transform: rotate(0deg);
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+  }
+
+  50% {
+    transform: rotate(10deg);
+    box-shadow: 0 0 20px rgba(255, 235, 59, 1);
+  }
+
+  100% {
+    transform: rotate(0deg);
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+  }
+}
+
+/* 載入動畫 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #333;
+  border-top: 5px solid #31b6de;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.pagination-btn {
+  background: #36ccfa;
+  color: #121212;
+  padding: 1.2rem 1.2rem;
+  border-radius: 8px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #36ccfa;
+  transform: scale(1.05);
+}
+
+.pagination-info {
+  font-size: 1rem;
+  color: #121212;
+}
+
+.return-btn {
+  display: block;
+  width: 100%;
+  padding: 1.2rem;
+  background: #36ccfa;
+  color: #121212;
+  font-weight: bold;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 2rem;
+  transition: all 0.3s ease;
+}
+
+.return-btn:hover {
+  background: #30b4dc;
+  transform: scale(1.02);
+}
+
+
+/* <style>  */
+/* 自訂公告頁面 CSS黑色模式 */
+.dark-mode .news-wrapper {
+  background: #121212;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  max-width: 900px;
+  margin: 0 auto;
+  color: #e0e0e0;
+  font-family: 'Helvetica Neue', sans-serif;
+}
+
+.dark-mode .news-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #00e676;
+  text-align: center;
+  margin-bottom: 2rem;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+}
+
+.dark-mode .news-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+}
+
+.dark-mode .news-item {
+  background: #1e1e1e;
+  padding: 1.8rem;
+  border-radius: 12px;
+  border: 2px solid #333;
+  position: relative;
+  cursor: pointer;
+  opacity: 0;
+  /* 初始透明，用於淡入特效 */
+  animation: fadeIn 0.5s ease forwards;
+  /* 只保留淡入效果 */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dark-mode .news-item:hover {
+  border-color: #00e676;
+  transform: translateY(-8px);
+  box-shadow: 0 8px 25px rgba(0, 230, 118, 0.2);
+}
+
+.dark-mode .news-item::after {
+  content: '點擊查看';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.8rem;
+  color: #888;
+  transition: color 0.3s ease;
+}
+
+.dark-mode .news-item:hover::after {
+  color: #00e676;
+}
+
+.dark-mode .news-date {
+  font-size: 0.9rem;
+  color: #999;
+  margin-bottom: 0.6rem;
+}
+
+.dark-mode .news-tag {
+  display: inline-block;
+  background: #d81b60;
+  color: #fff;
+  padding: 0.3rem 1rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.dark-mode .news-headline {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.6rem;
+}
+
+.dark-mode .news-author {
+  font-size: 1rem;
+  color: #bbb;
+  margin-bottom: 0.6rem;
+}
+
+.dark-mode .news-teaser {
+  font-size: 1.1rem;
+  color: #ccc;
+  display: block;
+}
+
+.dark-mode .news-full {
+  font-size: 1.1rem;
+  color: #ccc;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #444;
+}
+
+/* 新增「New」標籤樣式 */
+.dark-mode .news-new {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  background: #ffeb3b;
+  color: #121212;
+  padding: 0.3rem 0.8rem;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: bold;
+  animation: spinGlow 1.5s infinite ease-in-out;
+  box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+}
+
+@keyframes spinGlow {
+  0% {
+    transform: rotate(0deg);
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+  }
+
+  50% {
+    transform: rotate(10deg);
+    box-shadow: 0 0 20px rgba(255, 235, 59, 1);
+  }
+
+  100% {
+    transform: rotate(0deg);
+    box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+  }
+}
+
+/* 載入動畫 */
+.dark-mode .loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.dark-mode .loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #333;
+  border-top: 5px solid #00e676;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.dark-mode .pagination-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.dark-mode .pagination-btn {
+  background: #00e676;
+  color: #121212;
+  padding: 1.2rem 1.2rem;
+  border-radius: 8px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .pagination-btn:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
+
+.dark-mode .pagination-btn:hover:not(:disabled) {
+  background: #00c853;
+  transform: scale(1.05);
+}
+
+.dark-mode .pagination-info {
+  font-size: 1rem;
+  color: #bbb;
+}
+
+.dark-mode .return-btn {
+  display: block;
+  width: 100%;
+  padding: 1.2rem;
+  background: #00e676;
+  color: #121212;
+  font-weight: bold;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 2rem;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .return-btn:hover {
+  background: #00c853;
+  transform: scale(1.02);
+}

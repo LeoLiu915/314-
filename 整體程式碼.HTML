@@ -1,0 +1,3821 @@
+<!--1.8.1.20250408.2305.17&25-->
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>115級14班_班務系統</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 載入JS -->
+  <script>
+    // 加入 google.script.run 模擬代碼，防止本地執行報錯
+    if (typeof google === 'undefined') {
+      window.google = {
+        script: {
+          run: {
+            withSuccessHandler: function (handler) {
+              const self = this;
+              const proxy = new Proxy({}, {
+                get: (target, prop) => {
+                  return (...args) => {
+                    console.log(`[Mock] Calling ${prop} with`, args);
+                    // 提供一些預設的回應
+                    const defaults = {
+                      getAllUsers: () => handler([]),
+                      getUnreadNotificationCount: () => handler(0),
+                      getDailyMsCoinLimit: () => handler({ success: true, remaining: 1000, dailyLimit: 1000, used: 0 }),
+                      getSubjectList: () => handler({ subjects: [] }),
+                      isSubjectTeacher: () => handler(false),
+                      getPersonalNotifications: () => handler({ notifications: [] }),
+                      getCategories: () => handler(["文具", "零食", "飲料", "其他"]),
+                      getItemsForCategory: () => handler([{ name: "測試商品", price: 10 }]),
+                      getUserPoints: () => handler({ points: 0, ntValue: 0, expiringPoints: 0, expiringNT: 0 }),
+                      getPassbookRecords: () => handler({ html: "<p>測試紀錄</p>", total: 0 }),
+                      getClassFeeRecords: () => handler({ html: "<p>測試紀錄</p>", total: 0 }),
+                      getDailyMsCoinLimit: () => handler({ success: true, remaining: 1000, dailyLimit: 1000, used: 0 }),
+                      getGeminiResponse: () => handler("這是來自模擬 AI 的回應。"),
+                      getAnnouncementsWithPagination: () => handler({ announcements: [], total: 0 }),
+                      confirmClassFeeCollection: () => handler({ success: true }),
+                      transferMoney: () => handler({ success: true }),
+                      updateUserPassword: () => handler({ success: true }),
+                      processClassFeeRequest: () => handler({ success: true }),
+                      submitClassFeeRequest: () => handler({ success: true }),
+                      cashierCheckout: () => handler({ success: true }),
+                      recordLogin: () => { },
+                      recordChangePassword: () => { }
+                    };
+                    if (defaults[prop]) {
+                      defaults[prop]();
+                    } else {
+                      handler({ success: true, message: "Mocked success" });
+                    }
+                  };
+                }
+              });
+              return proxy;
+            },
+            withFailureHandler: function () {
+              return this;
+            }
+          }
+        }
+      };
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const rememberedAccount = localStorage.getItem('rememberedAccount');
+      const rememberedPassword = localStorage.getItem('rememberedPassword');
+      if (rememberedAccount && rememberedPassword) {
+        try {
+          document.getElementById('account').value = decodeURIComponent(atob(rememberedAccount));
+          document.getElementById('password').value = decodeURIComponent(atob(rememberedPassword));
+          document.getElementById('rememberPassword').checked = true;
+        } catch (e) {
+          localStorage.removeItem('rememberedAccount');
+          localStorage.removeItem('rememberedPassword');
+        }
+      }
+    });
+
+    // 修改 toggleRememberPassword 函數
+    function toggleRememberPassword() {
+      const isChecked = document.getElementById('rememberPassword').checked;
+      if (!isChecked) {
+        // 直接清除本地儲存的數據，但不影響輸入框中的值
+        localStorage.removeItem('rememberedAccount');
+        localStorage.removeItem('rememberedPassword');
+      }
+      // 移除確認提示和回復勾選的邏輯
+    }
+    // 自定義 BigNumber 類別
+    function BigNumber(num) {
+      if (typeof num !== 'string') {
+        num = num.toString();
+      }
+      this.value = num.replace(/^0+/, '') || '0'; // 移除前導零
+
+      if (!/^\d+$/.test(this.value)) {
+        throw new Error('BigNumber 僅支援正整數');
+      }
+    }
+
+    // 加法
+    BigNumber.prototype.add = function (other) {
+      if (!(other instanceof BigNumber)) {
+        other = new BigNumber(other);
+      }
+      let a = this.value.split('').reverse();
+      let b = other.value.split('').reverse();
+      let carry = 0;
+      let result = [];
+
+      for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        let x = i < a.length ? parseInt(a[i], 10) || 0 : 0;
+        let y = i < b.length ? parseInt(b[i], 10) || 0 : 0;
+        let sum = x + y + carry;
+        carry = Math.floor(sum / 10);
+        result.unshift(sum % 10);
+      }
+      if (carry) {
+        result.unshift(carry);
+      }
+      return new BigNumber(result.join(''));
+    };
+
+    // 乘法（改進版，支援 BigNumber 與 BigNumber 或數字之間的大數乘法）
+    BigNumber.prototype.multiply = function (factor) {
+      // 如果 factor 是 BigNumber 物件，轉換為字串進行計算
+      if (factor instanceof BigNumber) {
+        factor = factor.value;
+      }
+
+      // 確保 factor 為正整數（字串或數字）
+      if (typeof factor === 'string') {
+        if (!/^\d+$/.test(factor)) {
+          throw new Error('僅支援正整數乘法');
+        }
+      } else if (typeof factor !== 'number' || !Number.isInteger(factor) || factor < 0) {
+        throw new Error('僅支援正整數乘法');
+      }
+
+      // 將 factor 轉換為字串以便與 this.value 進行運算
+      factor = factor.toString();
+      let result = '0';
+      let a = this.value;
+      let b = factor;
+
+      // 使用大數乘法算法
+      for (let i = b.length - 1; i >= 0; i--) {
+        let carry = 0;
+        let currentResult = '';
+        let digitB = parseInt(b[i], 10);
+
+        for (let j = a.length - 1; j >= 0; j--) {
+          let digitA = parseInt(a[j], 10);
+          let product = digitA * digitB + carry;
+          carry = Math.floor(product / 10);
+          currentResult = (product % 10) + currentResult;
+        }
+        if (carry > 0) {
+          currentResult = carry + currentResult;
+        }
+
+        // 將結果右移 i 位（補 0）
+        currentResult += '0'.repeat(b.length - 1 - i);
+
+        // 將當前結果加到總結果
+        result = new BigNumber(result).add(new BigNumber(currentResult)).value;
+      }
+
+      return new BigNumber(result.replace(/^0+/, '') || '0'); // 移除前導零
+    };
+
+    // 除法（簡化版，僅用於整數除法）
+    BigNumber.prototype.divide = function (other) {
+      if (!(other instanceof BigNumber)) {
+        other = new BigNumber(other);
+      }
+      let quotient = '0';
+      let remainder = new BigNumber(this.value);
+      let divisor = other.value;
+
+      while (remainder.compare(new BigNumber('0')) > 0) {
+        let count = '0';
+        while (remainder.compare(new BigNumber(divisor)) >= 0) {
+          remainder = remainder.add(new BigNumber(divisor).multiply(-1));
+          count = new BigNumber(count).add(new BigNumber('1')).toString();
+        }
+        quotient = new BigNumber(quotient).add(new BigNumber(count)).toString();
+      }
+      return new BigNumber(quotient);
+    };
+
+    // 轉為字串（格式化為帶逗號的數字）
+    BigNumber.prototype.toFormattedString = function () {
+      return this.value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
+
+    // 比較（大於、小於、等於）
+    BigNumber.prototype.compare = function (other) {
+      if (!(other instanceof BigNumber)) {
+        other = new BigNumber(other);
+      }
+      if (this.value.length !== other.value.length) {
+        return this.value.length > other.value.length ? 1 : -1;
+      }
+      return this.value.localeCompare(other.value);
+    };
+
+    // 取得原始值（字串）
+    BigNumber.prototype.toString = function () {
+      return this.value;
+    };
+    // 全域變數
+    var users = [];
+    var currentAccount = "";
+    var currentBalance = { nt: 0, ms: new BigNumber('0') };
+    var forceChange = false;
+    var isAdmin = false;  // 判斷是否為管理員
+    // 分頁變數：班費請款確認
+    var classFeeRequestPage = 1;
+    var classFeeRequestPerPage = 10;
+    var classFeeRequestTotalPages = 1;
+    var currentRequestRow = -1;
+    var isConfirmRequest = false;
+    // 新增公告分頁變數
+    var announcementPage = 1;
+    var announcementPerPage = 10;
+    var announcementTotalPages = 1;
+    // 分頁變數：數資幣存摺
+    var msCoinPassbookPage = 1;
+    var msCoinPassbookPerPage = 10;
+    var msCoinPassbookTotalPages = 1;
+    // 分頁變數：成績登記紀錄
+    var gradeRecordsPage = 1;
+    var gradeRecordsPerPage = 10;
+    var gradeRecordsTotalPages = 1;
+    // 通用函數：為指定表單的輸入框綁定 Enter 鍵跳轉
+    function bindEnterKey(formId, inputIds) {
+      inputIds.forEach(function (id, index) {
+        var input = document.getElementById(id);
+        if (input) {
+          input.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+              event.preventDefault(); // 防止表單提交
+              var nextIndex = index + 1;
+              if (nextIndex < inputIds.length) {
+                var nextInput = document.getElementById(inputIds[nextIndex]);
+                if (nextInput) nextInput.focus();
+              } else {
+                var submitBtn = document.querySelector(`#${formId} .btn:last-child`);
+                if (submitBtn) submitBtn.click();
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // 每10秒更新資料
+    function loadData() {
+      google.script.run.withSuccessHandler(function (data) {
+        users = data;
+        if (currentAccount !== "") {
+          for (var i = 0; i < users.length; i++) {
+            if (String(users[i][0]).trim() === currentAccount) {
+              currentBalance = {
+                nt: users[i][2],
+                ms: new BigNumber(users[i][3] || "0")
+              };
+              var balanceNTElem = document.getElementById("balanceNT");
+              var balanceMSElem = document.getElementById("balanceMS");
+              if (balanceNTElem) { balanceNTElem.innerText = currentBalance.nt; }
+              if (balanceMSElem) { balanceMSElem.innerText = currentBalance.ms.toFormattedString(); }
+              var tfBalanceElem = document.getElementById("tfCurrentBalance");
+              if (tfBalanceElem) { tfBalanceElem.innerText = "目前新臺幣餘額：" + currentBalance.nt + " 元"; }
+
+              // 獲取並顯示剩餘可兌換金額
+              google.script.run.withSuccessHandler(function (limitData) {
+                if (limitData.success) {
+                  var remainingElem = document.getElementById("msCoinRemaining");
+                  if (remainingElem) {
+                    remainingElem.innerText = "今日剩餘可兌換金額：" + limitData.remaining + " 元（每日限額 " + limitData.dailyLimit + " 元，已用 " + limitData.used + " 元）";
+                  }
+                } else {
+                  console.error("獲取限額失敗：" + limitData.error);
+                }
+              }).getDailyMsCoinLimit(currentAccount);
+
+              break;
+            }
+          }
+          if (document.getElementById("accountRecordsPage").style.display !== "none") {
+            loadAccountRecords();
+          }
+          if (document.getElementById("passbookPage").style.display !== "none") {
+            loadPassbook();
+          }
+          if (document.getElementById("personalDataPage").style.display !== "none") {
+            loadPersonalData();
+          }
+          if (document.getElementById("announcementPage").style.display !== "none") {
+            loadAnnouncements();
+          }
+          if (document.getElementById("scoreQueryPage").style.display !== "none") {
+            loadSubjectScores();
+          }
+          if (document.getElementById("classFeeQueryPage").style.display !== "none") {
+            loadClassFeeRecords();
+          }
+          if (document.getElementById("adminClassFeeConfirmPage").style.display !== "none") {
+            loadPendingClassFeeRequests();
+          }
+          if (document.getElementById("personalNotificationsPage").style.display !== "none") {
+            loadPersonalNotifications();
+          }
+          if (document.getElementById("msCoinZonePage").style.display !== "none") {
+            loadMsCoinData();
+          }
+          if (document.getElementById("gradeRecordsPage").style.display !== "none") { // 新增成績登記紀錄頁面
+            loadGradeRecords();
+          }
+        }
+      }).getAllUsers();
+    }
+
+    // 在 DOM 載入完成後啟動定時更新
+    document.addEventListener('DOMContentLoaded', function () {
+      loadData(); // 初始載入
+      setInterval(loadData, 10000); // 每 10 秒更新一次
+    });
+
+    async function login() {
+      var account = document.getElementById("account").value.trim();
+      var password = document.getElementById("password").value.trim();
+      var errorBox = document.getElementById("error");
+      errorBox.style.display = "none";
+
+      // 取得使用者 IP
+      var ip = await getUserIP();
+
+      // 1. 先在現有使用者名單中找尋帳號
+      var found = false;
+      for (var i = 0; i < users.length; i++) {
+        var storedAccount = String(users[i][0]).trim();
+        if (storedAccount === account && account !== "") {
+          found = true;
+          currentAccount = account;
+          currentBalance = {
+            nt: users[i][2],
+            ms: new BigNumber(users[i][3] || "0")
+          };
+          document.getElementById("userName").innerText =
+            (users[i][4] && users[i][4].trim()) ? users[i][4].trim() : "使用者";
+          document.getElementById("balanceNT").innerText = currentBalance.nt;
+          document.getElementById("balanceMS").innerText = currentBalance.ms.toFormattedString();
+
+          // 身分判斷
+          if (users[i].length >= 10 && users[i][9] && users[i][9].indexOf("管理員") !== -1) {
+            isAdmin = true;
+            document.getElementById("adminPageBtn").style.display = "block";
+          } else {
+            isAdmin = false;
+            document.getElementById("adminPageBtn").style.display = "none";
+          }
+
+          document.getElementById("loginForm").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+
+          google.script.run.recordLogin(account, "成功 (免密碼)", ip);
+          google.script.run.withSuccessHandler(function (unreadCount) {
+            if (unreadCount > 0) {
+              alert(`您有 ${unreadCount} 則新的通知`);
+            }
+          }).getUnreadNotificationCount(account);
+          break;
+        }
+      }
+
+      // 2. 如果名單中找不到，或者是輸入 "0" / 空白，則進入測試模式
+      if (!found) {
+        if (account === "0" || account === "") {
+          currentAccount = account === "" ? "guest" : account;
+          currentBalance = { nt: "1000", ms: new BigNumber("123456789") };
+          document.getElementById("userName").innerText = "測試使用者";
+          document.getElementById("balanceNT").innerText = currentBalance.nt;
+          document.getElementById("balanceMS").innerText = currentBalance.ms.toFormattedString();
+          isAdmin = true;
+          document.getElementById("adminPageBtn").style.display = "block";
+          document.getElementById("loginForm").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+          google.script.run.recordLogin(currentAccount, "成功 (測試模式)", ip);
+          return;
+        } else {
+          // 真正的帳號錯誤（名單內沒人，也不是測試輸入）
+          errorBox.innerText = "找不到此帳號，請聯繫管理員！";
+          errorBox.style.display = "block";
+          google.script.run.recordLogin(account, "失敗 (帳號不存在)", ip);
+        }
+      }
+    }
+
+    async function sha256(text) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function getUserIP() {
+      try {
+        let response = await fetch("https://api64.ipify.org?format=json");
+        let data = await response.json();
+        return data.ip;
+      } catch {
+        return "未知";
+      }
+    }
+
+    function logout() {
+      document.getElementById("account").value = "";
+      document.getElementById("password").value = "";
+      hideAllPages();
+      document.getElementById("loginForm").style.display = "block";
+      currentAccount = "";
+      forceChange = false;
+
+      // 登出後檢查 localStorage 並自動填充
+      const rememberedAccount = localStorage.getItem('rememberedAccount');
+      const rememberedPassword = localStorage.getItem('rememberedPassword');
+      if (rememberedAccount && rememberedPassword) {
+        try {
+          document.getElementById('account').value = decodeURIComponent(atob(rememberedAccount));
+          document.getElementById('password').value = decodeURIComponent(atob(rememberedPassword));
+          document.getElementById('rememberPassword').checked = true;
+        } catch (e) {
+          localStorage.removeItem('rememberedAccount');
+          localStorage.removeItem('rememberedPassword');
+        }
+      }
+    }
+
+    function hideAllPages() {
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("accountRecordsPage").style.display = "none";
+      document.getElementById("transferForm").style.display = "none";
+      document.getElementById("passbookPage").style.display = "none";
+      document.getElementById("changePasswordForm").style.display = "none";
+      document.getElementById("personalDataPage").style.display = "none";
+      document.getElementById("announcementPage").style.display = "none";
+      document.getElementById("scoreQueryPage").style.display = "none";
+      document.getElementById("classFeeQueryPage").style.display = "none";
+      document.getElementById("classFeeRequestPage").style.display = "none";
+      document.getElementById("serviceTermsPage").style.display = "none";
+      document.getElementById("adminPage").style.display = "none";
+      document.getElementById("adminDepositPage").style.display = "none";
+      document.getElementById("adminWithdrawPage").style.display = "none";
+      document.getElementById("adminResetPasswordPage").style.display = "none";
+      document.getElementById("adminClassFeeConfirmPage").style.display = "none";
+      document.getElementById("personalNotificationsPage").style.display = "none";
+      document.getElementById("settingsPage").style.display = "none";
+      document.getElementById("GeminiAi").style.display = "none";
+      document.getElementById("msCoinZonePage").style.display = "none";
+      document.getElementById("msCoinExchangeForm").style.display = "none";
+      document.getElementById("cashExchangeForm").style.display = "none";
+      document.getElementById("msCoinInfoPage").style.display = "none";
+      document.getElementById("cashierForm").style.display = "none";
+      document.getElementById("msCoinPassbookPage").style.display = "none";
+      document.getElementById("msCoinTransferForm").style.display = "none";
+      document.getElementById("gradeRegistrationPage").style.display = "none";
+      document.getElementById("teacherGradeManagementPage").style.display = "none";
+      document.getElementById("createGradeRegistrationPage").style.display = "none";
+      document.getElementById("gradeRecordsPage").style.display = "none";
+      document.getElementById("gradeModificationPage").style.display = "none";
+      document.getElementById("incompleteFeaturesPage").style.display = "none";
+      document.getElementById("stockZonePage").style.display = "none";
+      document.getElementById("quickOrderPage").style.display = "none";
+      document.getElementById("lineBindingPage").style.display = "none";
+      document.getElementById("adminClassFeeCollectionPage").style.display = "none";
+      document.getElementById("adminBankTransferPage").style.display = "none";
+    }
+    /*==================== 轉帳及修改密碼 ====================*/
+    function showTransferForm() {
+      hideAllPages();
+      document.getElementById("tfTransferor").value = currentAccount;
+      document.getElementById("tfCurrentBalance").innerText = "目前新臺幣餘額：" + currentBalance.nt + " 元";
+      document.getElementById("tfReceiver").value = "";
+      document.getElementById("tfAmount").value = "";
+      document.getElementById("tfReason").value = "";
+      document.getElementById("tfPassword").value = "";
+      document.getElementById("tfError").innerText = "";
+      document.getElementById("tfError").style.display = "none";
+      document.getElementById("transferForm").style.display = "block";
+      bindEnterKey('transferForm', ['tfReceiver', 'tfAmount', 'tfReason', 'tfPassword']);
+    }
+
+    function initiateTransfer() {
+      var receiver = document.getElementById("tfReceiver").value.trim();
+      var amountStr = document.getElementById("tfAmount").value.trim();
+      var reason = document.getElementById("tfReason").value.trim();
+      var password = document.getElementById("tfPassword").value.trim();
+      var errorBox = document.getElementById("tfError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+      if (!receiver || !amountStr || !password) {
+        errorBox.innerText = "請填寫收款人、轉帳金額及密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+      if (receiver === currentAccount) {
+        errorBox.innerText = "不能轉帳給自己！";
+        errorBox.style.display = "block";
+        return;
+      }
+      var amount = parseInt(amountStr, 10);
+      if (isNaN(amount) || amount <= 0 || amount > 3000 || amount.toString() !== amountStr) {  // 修改上限為3000
+        errorBox.innerText = "轉帳金額必須為1~3000之間的整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+      document.getElementById("transferConfirmText").innerText =
+        "你確定要轉帳給 " + receiver + " " + amount + " 元？";
+      document.getElementById("transferConfirmModal").style.display = "flex";
+    }
+
+    function cancelTransferConfirm() {
+      document.getElementById("transferConfirmModal").style.display = "none";
+    }
+
+    function confirmTransfer() {
+      // 隱藏確認視窗
+      document.getElementById("transferConfirmModal").style.display = "none";
+
+      // 顯示轉帳中動畫
+      document.getElementById("transferProcessingModal").style.display = "flex";
+
+      var transferor = document.getElementById("tfTransferor").value.trim();
+      var receiver = document.getElementById("tfReceiver").value.trim();
+      var amount = parseInt(document.getElementById("tfAmount").value.trim(), 10);
+      var reason = document.getElementById("tfReason").value.trim();
+      var password = document.getElementById("tfPassword").value.trim();
+
+      // 模擬後端處理延遲（可根據實際情況移除）
+      setTimeout(function () {
+        google.script.run.withSuccessHandler(function (result) {
+          // 隱藏轉帳中動畫
+          document.getElementById("transferProcessingModal").style.display = "none";
+
+          if (result.success) {
+            // 顯示轉帳成功視窗
+            document.getElementById("transferSuccessModal").style.display = "flex";
+          } else {
+            var errorBox = document.getElementById("tfError");
+            errorBox.innerText = result.error;
+            errorBox.style.display = "block";
+          }
+        }).transferMoney(transferor, receiver, amount, reason, password);
+      }, 1500); // 模擬 1.5 秒的處理時間
+    }
+
+    // 關閉轉帳成功視窗並返回儀表板
+    function closeTransferSuccessModal() {
+      document.getElementById("transferSuccessModal").style.display = "none";
+      hideAllPages();
+      document.getElementById("dashboard").style.display = "block";
+    }
+
+    function togglePassword(fieldId, show) {
+      var passwordField = document.getElementById(fieldId);
+      passwordField.type = show ? "text" : "password";
+    }
+
+    // 密碼強度檢查
+    function checkPasswordStrength() {
+      var pwd = document.getElementById("newPassword").value;
+      var score = 0;
+      if (pwd.length >= 6) score++;
+      if (pwd.length >= 10) score++;
+      if (/[A-Z]/.test(pwd)) score++;
+      if (/[0-9]/.test(pwd)) score++;
+      if (/[^A-Za-z0-9]/.test(pwd)) score++;
+      var strengthText = "";
+      var strengthColor = "";
+      if (score <= 1) {
+        strengthText = "弱";
+        strengthColor = "red";
+      } else if (score <= 3) {
+        strengthText = "中等";
+        strengthColor = "orange";
+      } else {
+        strengthText = "強";
+        strengthColor = "green";
+      }
+      document.getElementById("passwordStrengthIndicator").innerHTML =
+        "密碼強度：<span style='color:" + strengthColor + "; font-weight:bold;'>" + strengthText + "</span>";
+    }
+
+    /*==================== 修改密碼 ====================*/
+    function showChangePassword() {
+      hideAllPages();
+      resetChangePasswordForm();
+      document.getElementById("changePasswordForm").style.display = "block";
+      document.getElementById("cpAccount").value = currentAccount;
+      if (forceChange) {
+        document.getElementById("forceChangeMessage").innerText = "首次登入請更改密碼！";
+        document.getElementById("cancelChangeBtn").style.display = "none";
+      } else {
+        document.getElementById("forceChangeMessage").innerText = "";
+        document.getElementById("cancelChangeBtn").style.display = "inline-block";
+      }
+      bindEnterKey('changePasswordForm', ['oldPassword', 'newPassword', 'confirmPassword']);
+    }
+
+    function resetChangePasswordForm() {
+      document.getElementById("oldPassword").value = "";
+      document.getElementById("newPassword").value = "";
+      document.getElementById("confirmPassword").value = "";
+      var cpError = document.getElementById("cpError");
+      cpError.innerText = "";
+      cpError.style.display = "none";
+      document.getElementById("passwordStrengthIndicator").innerHTML = "";
+    }
+
+    function updatePassword() {
+      var account = document.getElementById("cpAccount").value.trim();
+      var oldPassword = document.getElementById("oldPassword").value.trim();
+      var newPassword = document.getElementById("newPassword").value.trim();
+      var confirmPassword = document.getElementById("confirmPassword").value.trim();
+      var cpError = document.getElementById("cpError");
+      cpError.style.display = "none";
+      cpError.innerText = "";
+      if (!oldPassword || !newPassword || !confirmPassword) {
+        cpError.innerText = "請填寫所有欄位！";
+        cpError.style.display = "block";
+        return;
+      }
+      if (newPassword.length < 6) {
+        cpError.innerText = "新密碼至少6位數！";
+        cpError.style.display = "block";
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        cpError.innerText = "新密碼與確認密碼不一致！";
+        cpError.style.display = "block";
+        return;
+      }
+      google.script.run.withSuccessHandler(async function (result) {
+        var ip = await getUserIP();
+        if (result.success) {
+          google.script.run.recordChangePassword(currentAccount, "成功", ip);
+          alert("密碼修改成功！");
+          resetChangePasswordForm();
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+          forceChange = false;
+        } else {
+          google.script.run.recordChangePassword(currentAccount, "失敗", ip);
+          cpError.innerText = result.error;
+          cpError.style.display = "block";
+        }
+      }).updateUserPassword(account, oldPassword, newPassword);
+    }
+
+    /*==================== 成績查詢 ====================*/
+    function showScoreQuery() {
+      hideAllPages();
+      document.getElementById("scoreQueryPage").style.display = "block";
+      loadSubjectList();
+      checkTeacherStatus();
+    }
+
+    function loadSubjectList() {
+      google.script.run.withSuccessHandler(function (data) {
+        var subjects = data.subjects;
+        var select = document.getElementById("subjectSelect");
+        select.innerHTML = "<option value=''>請選擇科目</option>";
+        subjects.forEach(function (subject) {
+          var option = document.createElement("option");
+          option.value = subject;
+          option.text = subject;
+          select.appendChild(option);
+        });
+        loadSubjectScores();
+      }).getSubjectList();
+    }
+
+    function loadSubjectScores() {
+      var subject = document.getElementById("subjectSelect").value;
+      if (!subject) {
+        document.getElementById("scoreTableContainer").innerHTML = "<p class='text-center'>請選擇科目</p>";
+        return;
+      }
+      google.script.run.withSuccessHandler(function (html) {
+        document.getElementById("scoreTableContainer").innerHTML = html;
+      }).getAllSubjectScores(currentAccount, subject);
+    }
+
+    function checkTeacherStatus() {
+      google.script.run.withSuccessHandler(function (isTeacher) {
+        if (isTeacher) {
+          var btn = document.createElement("button");
+          btn.innerText = "小老師查詢全班成績";
+          btn.className = "w-full btn bg-green-600 text-white p-responsive-3 rounded-btn hover:bg-green-700";
+          btn.onclick = showTeacherModal;
+          document.getElementById("teacherButtonContainer").innerHTML = "";
+          document.getElementById("teacherButtonContainer").appendChild(btn);
+        } else {
+          document.getElementById("teacherButtonContainer").innerHTML = "";
+        }
+      }).isSubjectTeacher(currentAccount);
+    }
+
+    function showTeacherModal() {
+      document.getElementById("teacherModal").style.display = "flex";
+      loadTeacherSubjectList();
+    }
+
+    function loadTeacherSubjectList() {
+      google.script.run.withSuccessHandler(function (data) {
+        var subjects = data.subjects;
+        var testNames = data.testNames;
+        var select = document.getElementById("teacherSubjectSelect");
+        select.innerHTML = "<option value=''>請選擇測驗</option>";
+        subjects.forEach(function (subject) {
+          testNames[subject].forEach(function (test) {
+            var option = document.createElement("option");
+            option.value = subject + "|" + test;
+            option.text = subject + " - " + test;
+            select.appendChild(option);
+          });
+        });
+        loadClassScores();
+      }).getTeacherSubjectsWithTests(currentAccount);
+    }
+
+    function loadClassScores() {
+      var value = document.getElementById("teacherSubjectSelect").value;
+      if (!value) {
+        document.getElementById("classScoreTableContainer").innerHTML = "<p class='text-center'>請選擇測驗</p>";
+        return;
+      }
+      var [subject, testName] = value.split("|");
+      google.script.run.withSuccessHandler(function (html) {
+        document.getElementById("classScoreTableContainer").innerHTML = html;
+      }).getClassScores(subject, testName);
+    }
+
+    function closeTeacherModal() {
+      document.getElementById("teacherModal").style.display = "none";
+    }
+
+    async function cancelChangePassword() {
+      if (forceChange) return;
+      var ip = await getUserIP();
+      google.script.run.recordChangePassword(currentAccount, "取消", ip);
+      resetChangePasswordForm();
+      hideAllPages();
+      document.getElementById("dashboard").style.display = "block";
+    }
+
+    /*==================== 管理頁面 (僅限管理員) ====================*/
+    function showAdminPage() {
+      hideAllPages();
+      document.getElementById("adminPage").style.display = "block";
+    }
+
+    /*=======================存款登記=======================*/
+    function showAdminDepositPage() {
+      hideAllPages();
+      // 清空所有輸入框
+      for (var i = 0; i < 5; i++) {
+        document.getElementById(`deposit_rowAccount_${i}`).value = "";
+        document.getElementById(`deposit_rowReason_${i}`).value = "";
+        document.getElementById(`deposit_rowAmount_${i}`).value = "";
+      }
+      document.getElementById('deposit_adminDepositError').innerText = "";
+      document.getElementById('deposit_adminDepositError').classList.add('hidden');
+
+      document.getElementById("adminDepositPage").style.display = "block";
+
+      var inputIds = [];
+      for (var i = 0; i < 5; i++) {
+        inputIds.push(`deposit_rowAccount_${i}`, `deposit_rowReason_${i}`, `deposit_rowAmount_${i}`);
+      }
+      bindEnterKey('adminDepositPage', inputIds);
+    }
+
+    function showAdminWithdrawPage() {
+      hideAllPages();
+      // 清空所有輸入框
+      for (var i = 0; i < 5; i++) {
+        document.getElementById(`withdraw_rowAccount_${i}`).value = "";
+        document.getElementById(`withdraw_rowReason_${i}`).value = "";
+        document.getElementById(`withdraw_rowAmount_${i}`).value = "";
+      }
+      document.getElementById('withdraw_adminWithdrawError').innerText = "";
+      document.getElementById('withdraw_adminWithdrawError').classList.add('hidden');
+
+      document.getElementById("adminWithdrawPage").style.display = "block";
+
+      var inputIds = [];
+      for (var i = 0; i < 5; i++) {
+        inputIds.push(`withdraw_rowAccount_${i}`, `withdraw_rowReason_${i}`, `withdraw_rowAmount_${i}`);
+      }
+      bindEnterKey('adminWithdrawPage', inputIds);
+    }
+
+    function confirmAdminDeposit() {
+      var transactions = []; // 清空 transactions 變數
+      for (var i = 0; i < 5; i++) {
+        var account = document.getElementById("deposit_rowAccount_" + i).value.trim();
+        var reason = document.getElementById("deposit_rowReason_" + i).value.trim();
+        var amount = document.getElementById("deposit_rowAmount_" + i).value.trim();
+        if (account !== "" && amount !== "" && Number(amount) > 0) {
+          transactions.push({ account: account, reason: reason, amount: Number(amount) });
+        }
+      }
+      if (transactions.length === 0) {
+        document.getElementById("deposit_adminDepositError").innerText = "請至少輸入一筆交易資料";
+        document.getElementById("deposit_adminDepositError").style.display = "block";
+        return;
+      }
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("存款登記成功");
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+        } else {
+          document.getElementById("deposit_adminDepositError").innerText = result.error;
+          document.getElementById("deposit_adminDepositError").style.display = "block";
+        }
+      }).adminRegisterTransactions(true, transactions, currentAccount, "");
+    }
+
+    function confirmAdminWithdraw() {
+      var transactions = []; // 清空 transactions 變數
+      for (var i = 0; i < 5; i++) {
+        var account = document.getElementById("withdraw_rowAccount_" + i).value.trim();
+        var reason = document.getElementById("withdraw_rowReason_" + i).value.trim();
+        var amount = document.getElementById("withdraw_rowAmount_" + i).value.trim();
+        if (account !== "" && amount !== "" && Number(amount) > 0) {
+          transactions.push({ account: account, reason: reason, amount: Number(amount) });
+        }
+      }
+      if (transactions.length === 0) {
+        document.getElementById("withdraw_adminWithdrawError").innerText = "請至少輸入一筆交易資料";
+        document.getElementById("withdraw_adminWithdrawError").style.display = "block";
+        return;
+      }
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("提款登記成功");
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+        } else {
+          document.getElementById("withdraw_adminWithdrawError").innerText = result.error;
+          document.getElementById("withdraw_adminWithdrawError").style.display = "block";
+        }
+      }).adminRegisterTransactions(false, transactions, currentAccount, "");
+    }
+
+    function showAdminResetPasswordPage() {
+      hideAllPages();
+      var html = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      html += "<h2 class='text-2xl font-bold mb-4 text-center'>重設密碼</h2>";
+      html += "<div class='mb-4'><label class='block text-gray-600 text-sm font-medium'>請輸入要重設密碼的帳號</label>";
+      html += "<input type='text' id='resetTargetAccount' class='w-full p-2 border rounded mt-1' /></div>";
+      html += "<div class='mb-4'><label class='block text-gray-600 text-sm font-medium'>請輸入您的管理員密碼以確認</label>";
+      html += "<input type='password' id='resetAdminPassword' class='w-full p-2 border rounded mt-1' /></div>";
+      html += "<div id='resetError' class='text-red-500 text-sm mb-4 hidden'></div>";
+      html += "<div class='flex justify-between'>";
+      html += "<button onclick='hideAllPages();document.getElementById(\"dashboard\").style.display=\"block\";' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>取消</button>";
+      html += "<button onclick='initiateAdminReset()' class='w-5/12 btn bg-green-600 text-white p-responsive-3 rounded-btn hover:bg-green-700'>確認</button>";
+      html += "</div></div>";
+      document.getElementById("adminResetPasswordPage").innerHTML = html;
+      document.getElementById("adminResetPasswordPage").style.display = "block";
+      bindEnterKey('adminResetPasswordPage', ['resetTargetAccount', 'resetAdminPassword']);
+    }
+
+    function initiateAdminReset() {
+      var target = document.getElementById("resetTargetAccount").value.trim();
+      var adminPwd = document.getElementById("resetAdminPassword").value.trim();
+      var errorBox = document.getElementById("resetError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+      if (!target || !adminPwd) {
+        errorBox.innerText = "請填寫所有欄位！";
+        errorBox.style.display = "block";
+        return;
+      }
+      document.getElementById("resetConfirmText").innerText = "你確定要重設 " + target + " 的密碼？";
+      document.getElementById("resetConfirmModal").style.display = "flex";
+    }
+
+    function cancelResetConfirm() {
+      document.getElementById("resetConfirmModal").style.display = "none";
+    }
+
+    function confirmReset() {
+      document.getElementById("resetConfirmModal").style.display = "none";
+      var target = document.getElementById("resetTargetAccount").value.trim();
+      var adminPwd = document.getElementById("resetAdminPassword").value.trim();
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("密碼重設成功！");
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+        } else {
+          var errorBox = document.getElementById("resetError");
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).adminResetPassword(target, currentAccount, adminPwd);
+    }
+
+    function showAdminClassFeeConfirmPage() {
+      hideAllPages();
+      classFeeRequestPage = 1;
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-2xl font-bold mb-4 text-center'>班費請款確認</h2>";
+      htmlContent += "<div class='mb-4 text-center'><label>每頁顯示: </label><select id='classFeeRequestPerPageSelect' onchange='changeClassFeeRequestPerPage()'>";
+      htmlContent += "<option value='10'>10</option><option value='20'>20</option><option value='30'>30</option><option value='50'>50</option>";
+      htmlContent += "</select></div>";
+      htmlContent += "<div id='classFeeRequestContainer'><p class='text-center'>載入中...</p></div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"adminPage\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>返回管理頁面</button>";
+      htmlContent += "</div>";
+      document.getElementById("adminClassFeeConfirmPage").innerHTML = htmlContent;
+      document.getElementById("adminClassFeeConfirmPage").style.display = "block";
+      loadPendingClassFeeRequests();
+    }
+
+    function loadPendingClassFeeRequests() {
+      google.script.run.withSuccessHandler(function (result) {
+        var htmlContent = result.html;
+        classFeeRequestTotalPages = Math.ceil(result.total / classFeeRequestPerPage);
+        htmlContent += "<div class='mt-4 text-center'>";
+        if (classFeeRequestPage > 1) {
+          htmlContent += "<button onclick='prevClassFeeRequest()' class='btn bg-blue-600 text-white p-2 rounded-btn mr-2'>上一頁</button>";
+        }
+        htmlContent += "第 " + classFeeRequestPage + " 頁，共 " + classFeeRequestTotalPages + " 頁";
+        if (classFeeRequestPage < classFeeRequestTotalPages) {
+          htmlContent += "<button onclick='nextClassFeeRequest()' class='btn bg-blue-600 text-white p-2 rounded-btn ml-2'>下一頁</button>";
+        }
+        htmlContent += "</div>";
+        document.getElementById("classFeeRequestContainer").innerHTML = htmlContent;
+      }).getPendingClassFeeRequests(classFeeRequestPerPage, (classFeeRequestPage - 1) * classFeeRequestPerPage);
+    }
+
+    function changeClassFeeRequestPerPage() {
+      classFeeRequestPerPage = parseInt(document.getElementById("classFeeRequestPerPageSelect").value);
+      classFeeRequestPage = 1;
+      loadPendingClassFeeRequests();
+    }
+
+    function prevClassFeeRequest() {
+      if (classFeeRequestPage > 1) {
+        classFeeRequestPage--;
+        loadPendingClassFeeRequests();
+      }
+    }
+
+    function nextClassFeeRequest() {
+      if (classFeeRequestPage < classFeeRequestTotalPages) {
+        classFeeRequestPage++;
+        loadPendingClassFeeRequests();
+      }
+    }
+
+    function initiateConfirmClassFeeRequest(rowNumber) {
+      currentRequestRow = rowNumber;
+      isConfirmRequest = true;
+      document.getElementById("classFeeConfirmText").innerText = "你確定要確認此班費請款？";
+      document.getElementById("classFeeConfirmModal").style.display = "flex";
+    }
+
+    function initiateDeleteClassFeeRequest(rowNumber) {
+      currentRequestRow = rowNumber;
+      isConfirmRequest = false;
+      document.getElementById("classFeeConfirmText").innerText = "你確定要刪除此班費請款？";
+      document.getElementById("classFeeConfirmModal").style.display = "flex";
+    }
+
+    function cancelClassFeeConfirm() {
+      document.getElementById("classFeeConfirmModal").style.display = "none";
+      document.getElementById("classFeeAdminPassword").value = "";
+      document.getElementById("classFeeConfirmError").style.display = "none";
+    }
+
+    function confirmClassFeeAction() {
+      var password = document.getElementById("classFeeAdminPassword").value.trim();
+      var errorBox = document.getElementById("classFeeConfirmError");
+      errorBox.style.display = "none";
+      if (!password) {
+        errorBox.innerText = "請輸入管理員密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(isConfirmRequest ? "請款已確認！" : "請款已刪除！");
+          document.getElementById("classFeeConfirmModal").style.display = "none";
+          document.getElementById("classFeeAdminPassword").value = "";
+          loadPendingClassFeeRequests();
+        } else {
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).processClassFeeRequest(currentRequestRow, isConfirmRequest ? "確認" : "刪除", currentAccount, password);
+    }
+    /*==================== 登入表單初始化 ====================*/
+    function setupLoginForm() {
+      bindEnterKey('loginForm', ['account', 'password']);
+    }
+
+    window.onload = function () {
+      loadData();
+      setInterval(loadData, 10000);
+      setupLoginForm();
+    };
+
+    /*=====================設定介面設置=======================*/
+    function showSettingsPage() {
+      hideAllPages();
+      document.getElementById("settingsPage").style.display = "block";
+    }
+
+    /*=====================AI介面設置=======================*/
+    function showGeminiAi() {
+      hideAllPages();
+      document.getElementById("GeminiAi").style.display = "block";
+    }
+
+    function toggleTheme() {
+      var body = document.querySelector("body");
+      var isDark = document.getElementById("themeToggle").checked;
+      if (isDark) {
+        // 開啟深色模式
+        body.classList.add("dark-mode");
+      } else {
+        // 關閉深色模式
+        body.classList.remove("dark-mode");
+      }
+    }
+
+    // 切換裝置模式
+    function toggleDeviceView() {
+      var body = document.querySelector("body");
+      var ismobile = !document.getElementById("deviceToggle").checked;
+      if (ismobile) {
+        body.classList.add("mobile-mode");
+      } else {
+        body.classList.remove("mobile-mode");
+      }
+    }
+
+    function toggleNotifications() {
+      var isOn = document.getElementById("notificationsToggle").checked;
+      // 這裡只做前端顯示，實際是否推播可透過後端設定
+      console.log("推播通知狀態:", isOn ? "開啟" : "關閉");
+      // 您可以在這裡加入 alert 或其他 UI 提示
+    }
+
+    function changeFontSize() {
+      var size = document.getElementById("fontSizeSelect").value; // small / normal / large
+      var body = document.querySelector("body");
+      body.classList.remove("font-size-small", "font-size-normal", "font-size-large");
+      if (size === "small") {
+        body.classList.add("font-size-small");
+      } else if (size === "large") {
+        body.classList.add("font-size-large");
+      } else {
+        body.classList.add("font-size-normal");
+      }
+    }
+
+    //編輯個人資料（先留空功能）
+    function editUserData() {
+      alert("未來這裡可跳轉到『編輯個人資料』的頁面或彈窗！");
+      // TODO: 後續可再實作實際編輯行為
+    }
+
+    // 顯示數資幣專區（修正版：包含所有按鈕）
+    function showMsCoinZone() {
+      hideAllPages();
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-2xl font-bold mb-4 text-center'>數資幣專區</h2>";
+      htmlContent += "<div id='msCoinDataContainer'><p class='text-center'>載入中...</p></div>";
+      htmlContent += "<div class='mt-4 space-y-4'>";
+      htmlContent += "<button onclick='showMsCoinExchange()' class='w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>數資幣兌換</button>";
+      htmlContent += "<button onclick='showCashExchange()' class='w-full btn bg-green-500 text-white p-responsive-3 rounded-btn hover:bg-green-700'>現金兌換</button>";
+      htmlContent += "<button onclick='showMsCoinInfo()' class='w-full btn bg-gray-500 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>說明</button>";
+      htmlContent += "<button onclick='showMsCoinTransfer()' class='w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700'>數資幣轉帳</button>";
+      htmlContent += "<button onclick='showMsCoinPassbook()' class='w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700'>數資幣存摺</button>";
+      htmlContent += "</div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"dashboard\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>回首頁</button>";
+      htmlContent += "</div>";
+      document.getElementById("msCoinZonePage").innerHTML = htmlContent;
+      document.getElementById("msCoinZonePage").style.display = "block";
+      loadMsCoinData();
+      console.log("進入數資幣專區，頁面應顯示"); // 調試訊息
+    }
+
+    function loadMsCoinData() {
+      google.script.run.withSuccessHandler(function (html) {
+        document.getElementById("msCoinDataContainer").innerHTML = html;
+        // 獲取並顯示剩餘可兌換金額
+        google.script.run.withSuccessHandler(function (limitData) {
+          if (limitData.success) {
+            var remainingElem = document.getElementById("msCoinRemaining");
+            if (remainingElem) {
+              remainingElem.innerText = "今日剩餘可兌換金額：" + limitData.remaining + " 元（每日限額 " + limitData.dailyLimit + " 元，已用 " + limitData.used + " 元）";
+            }
+          } else {
+            console.error("獲取限額失敗：" + limitData.error);
+          }
+        }).getDailyMsCoinLimit(currentAccount);
+      }).getMsCoinData(currentAccount);
+    }
+    // 顯示數資幣兌換表單
+    function showMsCoinExchange() {
+      hideAllPages();
+      document.getElementById("msCoinExchangeAmount").value = "";
+      document.getElementById("msCoinExchangePassword").value = "";
+      document.getElementById("msCoinExchangeError").innerText = "";
+      document.getElementById("msCoinExchangeError").style.display = "none";
+      var html = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      html += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>數資幣兌換</h2>";
+      html += "<div class='mb-4'>";
+      html += "<label class='block text-gray-600 text-sm font-medium'>兌換金額 (新臺幣整數)</label>";
+      html += "<input type='number' id='msCoinExchangeAmount' class='w-full p-2 border rounded mt-1' min='1' oninput='updateMsCoinEquivalent(this.value)' />";
+      html += "<p id='msCoinEquivalent' class='text-sm text-gray-500 mt-1'></p>"; // 添加顯示數資幣數量的區域
+      html += "</div>";
+      html += "<div class='mb-4 relative'>";
+      html += "<label class='block text-gray-600 text-sm font-medium'>密碼</label>";
+      html += "<div class='relative'>";
+      html += "<input type='password' id='msCoinExchangePassword' class='w-full p-2 border rounded mt-1' />";
+      html += "<span class='toggle-eye' onmousedown='togglePassword(\"msCoinExchangePassword\", true)' onmouseup='togglePassword(\"msCoinExchangePassword\", false)' ontouchstart='togglePassword(\"msCoinExchangePassword\", true)' ontouchend='togglePassword(\"msCoinExchangePassword\", false)'>👁️</span>";
+      html += "</div>";
+      html += "</div>";
+      html += "<p id='msCoinExchangeError' class='text-red-500 text-sm mb-4 hidden'></p>";
+      html += "<div class='flex justify-between'>";
+      html += "<button onclick='hideAllPages();document.getElementById(\"msCoinZonePage\").style.display=\"block\";' class='w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>取消</button>";
+      html += "<button onclick='confirmMsCoinExchange()' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>確認兌換</button>";
+      html += "</div></div>";
+      document.getElementById("msCoinExchangeForm").innerHTML = html;
+      document.getElementById("msCoinExchangeForm").style.display = "block";
+      bindEnterKey('msCoinExchangeForm', ['msCoinExchangeAmount', 'msCoinExchangePassword']);
+    }
+
+    // 動態更新新臺幣兌換等於的數資幣數量
+    function updateMsCoinEquivalent(ntAmount) {
+      var msCoinEquivalent = document.getElementById("msCoinEquivalent");
+      if (!msCoinEquivalent) {
+        console.error("未找到 msCoinEquivalent 元素");
+        return;
+      }
+
+      // 清除舊的顯示
+      msCoinEquivalent.innerText = "";
+
+      // 檢查輸入是否有效（必須為正整數）
+      if (!ntAmount || ntAmount.trim() === "" || !/^\d+$/.test(ntAmount)) {
+        msCoinEquivalent.innerText = "請輸入正整數（僅允許 0-9 的數字）";
+        return;
+      }
+
+      try {
+        const exchangeRate = new BigNumber('74207381348100'); // 更新為 7,420,738,134,810 * 10
+        const ntAmountBig = new BigNumber(ntAmount);
+        const msAmount = ntAmountBig.multiply(exchangeRate);
+        msCoinEquivalent.innerText = "等於 " + msAmount.toFormattedString() + " MS∮";
+      } catch (error) {
+        msCoinEquivalent.innerText = "計算錯誤，請聯繫管理員";
+        console.error("計算數資幣數量時發生錯誤:", error);
+      }
+    }
+
+    // 顯示現金兌換表單
+    function showCashExchange() {
+      hideAllPages();
+      document.getElementById("cashExchangeAmount").value = "";
+      document.getElementById("cashExchangePassword").value = "";
+      document.getElementById("cashExchangeError").innerText = "";
+      document.getElementById("cashExchangeError").style.display = "none";
+      document.getElementById("cashExchangeForm").style.display = "block";
+      bindEnterKey('cashExchangeForm', ['cashExchangeAmount', 'cashExchangePassword']);
+    }
+
+    // 顯示數資幣說明
+    function showMsCoinInfo() {
+      hideAllPages();
+      document.getElementById("msCoinInfoPage").style.display = "block";
+    }
+
+    // 確認數資幣兌換
+    function confirmMsCoinExchange() {
+      var amountStr = document.getElementById("msCoinExchangeAmount").value.trim();
+      var password = document.getElementById("msCoinExchangePassword").value.trim();
+      var errorBox = document.getElementById("msCoinExchangeError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (!amountStr || !password) {
+        errorBox.innerText = "請填寫兌換金額及密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      var amount = parseInt(amountStr, 10);
+      if (isNaN(amount) || amount <= 0 || amount.toString() !== amountStr) {
+        errorBox.innerText = "兌換金額必須為正整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("數資幣兌換成功！");
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+          loadData(); // 更新餘額
+        } else {
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).exchangeToMsCoin(currentAccount, amount, password);
+    }
+
+    // 確認現金兌換
+    function confirmCashExchange() {
+      var amountStr = document.getElementById("cashExchangeAmount").value.trim();
+      var password = document.getElementById("cashExchangePassword").value.trim();
+      var errorBox = document.getElementById("cashExchangeError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (!amountStr || !password) {
+        errorBox.innerText = "請填寫兌換金額及密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      var amount = parseInt(amountStr, 10);
+      if (isNaN(amount) || amount <= 0 || amount.toString() !== amountStr) {
+        errorBox.innerText = "兌換金額必須為正整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("現金兌換成功！");
+          hideAllPages();
+          document.getElementById("dashboard").style.display = "block";
+          loadData(); // 更新餘額
+        } else {
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).exchangeToCash(currentAccount, amount, password);
+    }
+
+    // 轉換新臺幣為數資幣
+    function convertToMsCoin(ntAmount) {
+      const exchangeRate = new BigNumber('74207381348100'); // 更新為 7,420,738,134,810 * 10
+      return new BigNumber(ntAmount).multiply(exchangeRate);
+    }
+
+    // 轉換數資幣為新臺幣
+    function convertToNewTaiwanDollar(msAmount) {
+      const exchangeRate = BigInt("74207381348100"); // 更新為 7,420,738,134,810 * 10
+      if (msAmount instanceof BigNumber) {
+        msAmount = BigInt(msAmount.value); // 將 BigNumber 轉換為 BigInt
+      } else if (typeof msAmount === 'string') {
+        msAmount = BigInt(msAmount.replace(/[^0-9]/g, '')); // 清理非數字字符
+      } else if (typeof msAmount !== 'bigint') {
+        throw new Error('無效的數資幣格式');
+      }
+      return Number(msAmount / exchangeRate);
+    }
+    // 顯示數資幣存摺
+    function showMsCoinPassbook() {
+      hideAllPages();
+      msCoinPassbookPage = 1;
+      var name = document.getElementById("userName").innerText;
+      var htmlContent = "<h2 class='text-2xl font-bold text-gray-700 mb-4 text-center'>"
+        + name + "您好，以下是您的數資幣存摺</h2>";
+      htmlContent += "<div class='mb-4 text-center'><label>每頁顯示: </label><select id='msCoinPassbookPerPageSelect' onchange='changeMsCoinPassbookPerPage()'>";
+      htmlContent += "<option value='10'>10</option><option value='20'>20</option><option value='30'>30</option><option value='50'>50</option>";
+      htmlContent += "</select></div>";
+      htmlContent += "<div id='msCoinPassbookTable' class='my-4 overflow-x-auto'><p class='text-center'>載入中...</p></div>";
+      document.getElementById("msCoinPassbookContainer").innerHTML = htmlContent;
+      document.getElementById("msCoinPassbookPage").style.display = "block";
+      loadMsCoinPassbook();
+    }
+
+    // 載入數資幣存摺數據
+    function loadMsCoinPassbook() {
+      var name = document.getElementById("userName").innerText;
+      google.script.run.withSuccessHandler(function (result) {
+        var htmlContent = result.html;
+        msCoinPassbookTotalPages = Math.ceil(result.total / msCoinPassbookPerPage);
+        htmlContent += "<div class='mt-4 text-center'>";
+        if (msCoinPassbookPage > 1) {
+          htmlContent += "<button onclick='prevMsCoinPassbook()' class='btn bg-blue-600 text-white p-2 rounded-btn mr-2'>上一頁</button>";
+        }
+        htmlContent += "第 " + msCoinPassbookPage + " 頁，共 " + msCoinPassbookTotalPages + " 頁";
+        if (msCoinPassbookPage < msCoinPassbookTotalPages) {
+          htmlContent += "<button onclick='nextMsCoinPassbook()' class='btn bg-blue-600 text-white p-2 rounded-btn ml-2'>下一頁</button>";
+        }
+        htmlContent += "</div>";
+        document.getElementById("msCoinPassbookTable").innerHTML = htmlContent;
+      }).getMsCoinPassbookRecords(currentAccount, name, msCoinPassbookPerPage, (msCoinPassbookPage - 1) * msCoinPassbookPerPage);
+    }
+
+    // 更改每頁顯示數量
+    function changeMsCoinPassbookPerPage() {
+      msCoinPassbookPerPage = parseInt(document.getElementById("msCoinPassbookPerPageSelect").value);
+      msCoinPassbookPage = 1;
+      loadMsCoinPassbook();
+    }
+
+    // 上一頁
+    function prevMsCoinPassbook() {
+      if (msCoinPassbookPage > 1) {
+        msCoinPassbookPage--;
+        loadMsCoinPassbook();
+      }
+    }
+
+    // 下一頁
+    function nextMsCoinPassbook() {
+      if (msCoinPassbookPage < msCoinPassbookTotalPages) {
+        msCoinPassbookPage++;
+        loadMsCoinPassbook();
+      }
+    }
+
+    // 返回數資幣專區
+    function backToMsCoinZoneFromPassbook() {
+      hideAllPages();
+      document.getElementById("msCoinZonePage").style.display = "block";
+      loadMsCoinData(); // 重新載入數資幣數據
+    }
+
+    function showMsCoinTransfer() {
+      hideAllPages();
+      if (!currentAccount || !currentBalance) {
+        alert("帳號或餘額數據未正確初始化，請重新登入！");
+        return;
+      }
+
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>數資幣轉帳</h2>";
+      htmlContent += "<div class='mt-4 space-y-4'>";
+      htmlContent += "<button onclick='showDirectMsCoinTransfer()' class='w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700'>直接轉帳</button>";
+      htmlContent += "<button onclick='showUnitMsCoinTransfer()' class='w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>以新臺幣 0.01 為單位轉帳</button>";
+      htmlContent += "<button onclick='showFractionalMsCoinTransfer()' class='w-full btn bg-green-500 text-white p-responsive-3 rounded-btn hover:bg-green-700'>以分數（新臺幣）轉帳</button>";
+      htmlContent += "</div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"msCoinZonePage\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>返回數資幣專區</button>";
+      htmlContent += "</div>";
+
+      document.getElementById("msCoinTransferForm").innerHTML = htmlContent;
+      document.getElementById("msCoinTransferForm").style.display = "block";
+    }
+    function showFractionalMsCoinTransfer() {
+      hideAllPages();
+      if (!currentAccount || !currentBalance) {
+        alert("帳號或餘額數據未正確初始化，請重新登入！");
+        return;
+      }
+
+      var htmlContent = "<div class='flex flex-col items-center'>";
+      htmlContent += "<h2 class='text-2xl font-bold text-gray-700'>數資幣轉帳（以分數新臺幣）</h2>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳人帳號</label>";
+      htmlContent += "<input type='text' id='fracMsTfTransferor' readonly value='" + currentAccount + "' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "<div id='fracMsTfCurrentBalance' class='mt-2 text-sm text-gray-700'>目前數資幣餘額：" + currentBalance.ms.toFormattedString() + " MS∮（約等於新臺幣 " + Math.floor(convertToNewTaiwanDollar(currentBalance.ms)) + " 元）</div>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>收款人帳號</label>";
+      htmlContent += "<input type='text' id='fracMsTfReceiver' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳金額（新臺幣分數，格式：分子/分母）</label>";
+      htmlContent += "<div class='flex items-center'>";
+      htmlContent += "<input type='number' id='fracMsTfNumerator' min='1' class='w-1/2 p-responsive-3 border border-gray-300 rounded-l-lg mt-1 focus:outline-none' placeholder='分子' />";
+      htmlContent += "<span class='w-1/6 text-center text-gray-600 p-responsive-3'>/</span>";
+      htmlContent += "<input type='number' id='fracMsTfDenominator' min='1' class='w-1/2 p-responsive-3 border border-gray-300 rounded-r-lg mt-1 focus:outline-none' placeholder='分母' oninput='validateFractionalDenominator()' />";
+      htmlContent += "</div>";
+      htmlContent += "<p id='fracMsTfFractionError' class='text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded'></p>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>等於數資幣</label>";
+      htmlContent += "<input type='text' id='fracMsTfMsEquivalent' readonly class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳原因（非必填）</label>";
+      htmlContent += "<input type='text' id='fracMsTfReason' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4 relative'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>密碼</label>";
+      htmlContent += "<div class='relative'>";
+      htmlContent += "<input type='password' id='fracMsTfPassword' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none pr-10' />";
+      htmlContent += "<span class='toggle-eye' onmousedown='togglePassword(\"fracMsTfPassword\", true)' onmouseup='togglePassword(\"fracMsTfPassword\", false)' ontouchstart='togglePassword(\"fracMsTfPassword\", true)' ontouchend='togglePassword(\"fracMsTfPassword\", false)'>👁️</span>";
+      htmlContent += "</div>";
+      htmlContent += "</div>";
+      htmlContent += "<p id='fracMsTfError' class='text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded'></p>";
+      htmlContent += "<div class='mt-6 flex justify-between'>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"msCoinZonePage\").style.display=\"block\";' class='w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>取消</button>";
+      htmlContent += "<button onclick='initiateFractionalMsCoinTransfer()' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>確認轉帳</button>";
+      htmlContent += "</div>";
+
+      document.getElementById("msCoinTransferForm").innerHTML = htmlContent;
+      document.getElementById("msCoinTransferForm").style.display = "block";
+      bindEnterKey('msCoinTransferForm', ['fracMsTfReceiver', 'fracMsTfNumerator', 'fracMsTfDenominator', 'fracMsTfReason', 'fracMsTfPassword']);
+
+      // 初始化等於數資幣顯示
+      updateFractionalMsCoinEquivalent();
+    }
+    function updateFractionalMsCoinEquivalent() {
+      var numerator = parseInt(document.getElementById("fracMsTfNumerator").value) || 0;
+      var denominator = parseInt(document.getElementById("fracMsTfDenominator").value) || 0;
+      const exchangeRate = 74207381348100; // 數資幣與新臺幣的匯率
+
+      var errorBox = document.getElementById("fracMsTfFractionError");
+      if (denominator <= 0 || numerator <= 0 || numerator > denominator) {
+        document.getElementById("fracMsTfMsEquivalent").value = "輸入無效";
+        return;
+      }
+
+      // 計算新臺幣金額（分子/分母）
+      var ntAmount = numerator / denominator;
+      // 計算對應的數資幣數量
+      var msEquivalent = Math.round(ntAmount * exchangeRate); // 確保無小數
+      document.getElementById("fracMsTfMsEquivalent").value = msEquivalent.toLocaleString() + " MS∮";
+    }
+    function initiateFractionalMsCoinTransfer() {
+      var receiver = document.getElementById("fracMsTfReceiver").value.trim();
+      var numerator = parseInt(document.getElementById("fracMsTfNumerator").value.trim(), 10) || 1; // 預設為 1，如果未填寫
+      var denominator = parseInt(document.getElementById("fracMsTfDenominator").value.trim(), 10) || 1; // 預設為 1，如果未填寫
+      var msAmountStr = document.getElementById("fracMsTfMsEquivalent").value.trim().replace(" MS∮", "").replace(/,/g, ""); // 從顯示的數資幣值解析
+      var reason = document.getElementById("fracMsTfReason").value.trim();
+      var password = document.getElementById("fracMsTfPassword").value.trim();
+      var errorBox = document.getElementById("fracMsTfError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (!receiver || !numerator || !denominator || !msAmountStr || !password) {
+        errorBox.innerText = "請填寫所有必填欄位（收款人、分子、分母、轉帳數資幣及密碼）！";
+        errorBox.style.display = "block";
+        return;
+      }
+      if (receiver === currentAccount) {
+        errorBox.innerText = "不能轉帳給自己！";
+        errorBox.style.display = "block";
+        return;
+      }
+      var msAmount = parseInt(msAmountStr, 10);
+      if (isNaN(msAmount) || msAmount < 0 || msAmount > 74207381348100) {
+        errorBox.innerText = "轉帳數資幣必須為 0~74,207,381,348,100 之間的整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      // 驗證分數是否有效
+      if (denominator <= 0 || numerator <= 0 || numerator > denominator) {
+        errorBox.innerText = "分數無效！分子必須小於等於分母，且兩者均為正整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      document.getElementById("fracMsCoinTransferConfirmText").innerText =
+        "你確定要轉帳 " + msAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " MS∮（等於新臺幣 " + numerator + "/" + denominator + " 元）給 " + receiver + "？";
+      document.getElementById("fracMsCoinTransferConfirmModal").style.display = "flex";
+
+      // 這裡傳遞分子和分母到後端
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("數資幣轉帳成功！");
+          hideAllPages();
+          document.getElementById("msCoinZonePage").style.display = "block";
+          loadMsCoinData(); // 重新載入數資幣數據
+        } else {
+          var errorBox = document.getElementById("fracMsTfError");
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).transferFractionalMsCoin(currentAccount, receiver, msAmount, reason, password, numerator, denominator);
+    }
+
+    function confirmFractionalMsCoinTransfer() {
+      document.getElementById("fracMsCoinTransferConfirmModal").style.display = "none";
+      var transferor = document.getElementById("fracMsTfTransferor").value.trim();
+      var receiver = document.getElementById("fracMsTfReceiver").value.trim();
+      var numerator = parseInt(document.getElementById("fracMsTfNumerator").value);
+      var denominator = parseInt(document.getElementById("fracMsTfDenominator").value);
+      var reason = document.getElementById("fracMsTfReason").value.trim();
+      var password = document.getElementById("fracMsTfPassword").value.trim();
+
+      const exchangeRate = 74207381348100;
+      var ntAmount = numerator / denominator;
+      var msAmount = Math.round(ntAmount * exchangeRate);
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("數資幣轉帳成功！");
+          hideAllPages();
+          document.getElementById("msCoinZonePage").style.display = "block";
+          loadMsCoinData(); // 重新載入數資幣數據
+        } else {
+          var errorBox = document.getElementById("fracMsTfError");
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).transferFractionalMsCoin(transferor, receiver, msAmount, reason, password);
+    }
+    function validateFractionalDenominator() {
+      var denominator = parseInt(document.getElementById("fracMsTfDenominator").value) || 0;
+      const exchangeRate = 74207381348100; // 數資幣與新臺幣的匯率
+      var errorBox = document.getElementById("fracMsTfFractionError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (denominator <= 0) {
+        errorBox.innerText = "分母必須為正整數！";
+        errorBox.style.display = "block";
+        document.getElementById("fracMsTfDenominator").value = "";
+        return false;
+      }
+
+      // 檢查是否為 exchangeRate 的因數
+      if (exchangeRate % denominator !== 0) {
+        errorBox.innerText = "分母必須是 74,207,381,348,100 的因數！";
+        errorBox.style.display = "block";
+        document.getElementById("fracMsTfDenominator").value = "";
+        return false;
+      }
+
+      // 檢查分子是否已輸入，並確保分子不超過分母
+      var numerator = parseInt(document.getElementById("fracMsTfNumerator").value) || 0;
+      if (numerator > denominator) {
+        errorBox.innerText = "分子不可大於分母（轉帳金額不可超過新臺幣 1 元）！";
+        errorBox.style.display = "block";
+        document.getElementById("fracMsTfNumerator").value = denominator; // 自動調整為分母值
+        return false;
+      }
+
+      updateFractionalMsCoinEquivalent(); // 更新等於數資幣顯示
+      return true;
+    }
+    function showUnitMsCoinTransfer() {
+      hideAllPages();
+      if (!currentAccount || !currentBalance) {
+        alert("帳號或餘額數據未正確初始化，請重新登入！");
+        return;
+      }
+
+      var htmlContent = "<div class='flex flex-col items-center'>";
+      htmlContent += "<h2 class='text-2xl font-bold text-gray-700'>數資幣轉帳（以新臺幣 0.01 為單位）</h2>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳人帳號</label>";
+      htmlContent += "<input type='text' id='msTfTransferor' readonly value='" + currentAccount + "' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "<div id='msTfCurrentBalance' class='mt-2 text-sm text-gray-700'>目前數資幣餘額：" + currentBalance.ms.toFormattedString() + " MS∮（約等於新臺幣 " + Math.floor(convertToNewTaiwanDollar(currentBalance.ms)) + " 元）</div>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>收款人帳號</label>";
+      htmlContent += "<input type='text' id='msTfReceiver' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳金額（新臺幣，0.01~0.99 元）</label>";
+      htmlContent += "<input type='number' id='msTfAmount' step='0.01' min='0.01' max='0.99' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' oninput='restrictMsCoinAmount()' placeholder='0.01~0.99' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>等於數資幣</label>";
+      htmlContent += "<input type='text' id='msTfMsEquivalent' readonly class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳原因（非必填）</label>";
+      htmlContent += "<input type='text' id='msTfReason' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4 relative'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>密碼</label>";
+      htmlContent += "<div class='relative'>";
+      htmlContent += "<input type='password' id='msTfPassword' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none pr-10' />";
+      htmlContent += "<span class='toggle-eye' onmousedown='togglePassword(\"msTfPassword\", true)' onmouseup='togglePassword(\"msTfPassword\", false)' ontouchstart='togglePassword(\"msTfPassword\", true)' ontouchend='togglePassword(\"msTfPassword\", false)'>👁️</span>";
+      htmlContent += "</div>";
+      htmlContent += "</div>";
+      htmlContent += "<p id='msTfError' class='text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded'></p>";
+      htmlContent += "<div class='mt-6 flex justify-between'>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"msCoinZonePage\").style.display=\"block\";' class='w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>取消</button>";
+      htmlContent += "<button onclick='initiateMsCoinTransfer()' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>確認轉帳</button>";
+      htmlContent += "</div>";
+
+      document.getElementById("msCoinTransferForm").innerHTML = htmlContent;
+      document.getElementById("msCoinTransferForm").style.display = "block";
+      bindEnterKey('msCoinTransferForm', ['msTfReceiver', 'msTfAmount', 'msTfReason', 'msTfPassword']);
+
+      // 初始化等於數資幣顯示
+      updateMsCoinEquivalent();
+    }
+    function showDirectMsCoinTransfer() {
+      hideAllPages();
+      if (!currentAccount || !currentBalance) {
+        alert("帳號或餘額數據未正確初始化，請重新登入！");
+        return;
+      }
+
+      var htmlContent = "<div class='flex flex-col items-center'>";
+      htmlContent += "<h2 class='text-2xl font-bold text-gray-700'>直接數資幣轉帳</h2>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳人帳號</label>";
+      htmlContent += "<input type='text' id='directMsTfTransferor' readonly value='" + currentAccount + "' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "<div id='directMsTfCurrentBalance' class='mt-2 text-sm text-gray-700'>目前數資幣餘額：" + currentBalance.ms.toFormattedString() + " MS∮（約等於新臺幣 " + Math.floor(convertToNewTaiwanDollar(currentBalance.ms)) + " 元）</div>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>收款人帳號</label>";
+      htmlContent += "<input type='text' id='directMsTfReceiver' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳數資幣（MS∮，0~74,207,381,348,100）</label>";
+      htmlContent += "<input type='number' id='directMsTfAmount' min='0' max='74207381348100' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' oninput='restrictDirectMsCoinAmount()' placeholder='0~74,207,381,348,100' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>約等於新臺幣</label>";
+      htmlContent += "<input type='text' id='directMsTfNtEquivalent' readonly class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>轉帳原因（非必填）</label>";
+      htmlContent += "<input type='text' id='directMsTfReason' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none' />";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mt-4 relative'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>密碼</label>";
+      htmlContent += "<div class='relative'>";
+      htmlContent += "<input type='password' id='directMsTfPassword' class='w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none pr-10' />";
+      htmlContent += "<span class='toggle-eye' onmousedown='togglePassword(\"directMsTfPassword\", true)' onmouseup='togglePassword(\"directMsTfPassword\", false)' ontouchstart='togglePassword(\"directMsTfPassword\", true)' ontouchend='togglePassword(\"directMsTfPassword\", false)'>👁️</span>";
+      htmlContent += "</div>";
+      htmlContent += "</div>";
+      htmlContent += "<p id='directMsTfError' class='text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded'></p>";
+      htmlContent += "<div class='mt-6 flex justify-between'>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"msCoinZonePage\").style.display=\"block\";' class='w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>取消</button>";
+      htmlContent += "<button onclick='initiateDirectMsCoinTransfer()' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>確認轉帳</button>";
+      htmlContent += "</div>";
+
+      document.getElementById("msCoinTransferForm").innerHTML = htmlContent;
+      document.getElementById("msCoinTransferForm").style.display = "block";
+      bindEnterKey('msCoinTransferForm', ['directMsTfReceiver', 'directMsTfAmount', 'directMsTfReason', 'directMsTfPassword']);
+
+      // 初始化約等於新臺幣顯示
+      updateDirectMsCoinEquivalent();
+    }
+
+    function updateDirectMsCoinEquivalent() {
+      var msAmount = parseInt(document.getElementById("directMsTfAmount").value) || 0;
+      const exchangeRate = 74207381348100; // 1 MS∮ = 0.00000000001348 新臺幣（精確到小數點後 14 位）
+      var ntEquivalent = msAmount / exchangeRate;
+      document.getElementById("directMsTfNtEquivalent").value = ntEquivalent.toFixed(2) + " 元";
+    }
+
+    function restrictDirectMsCoinAmount() {
+      var input = document.getElementById("directMsTfAmount");
+      var value = input.value;
+
+      // 移除非數字的字符
+      value = value.replace(/[^0-9]/g, '');
+
+      // 確保值在 0~74,207,381,348,100 之間
+      var numValue = parseInt(value) || 0;
+      if (numValue < 0) {
+        value = "0";
+      } else if (numValue > 74207381348100) {
+        value = "74207381348100";
+      }
+
+      input.value = value;
+      updateDirectMsCoinEquivalent(); // 更新約等於新臺幣顯示
+    }
+    function initiateDirectMsCoinTransfer() {
+      var receiver = document.getElementById("directMsTfReceiver").value.trim();
+      var msAmountStr = document.getElementById("directMsTfAmount").value.trim();
+      var reason = document.getElementById("directMsTfReason").value.trim();
+      var password = document.getElementById("directMsTfPassword").value.trim();
+      var errorBox = document.getElementById("directMsTfError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (!receiver || !msAmountStr || !password) {
+        errorBox.innerText = "請填寫收款人、轉帳數資幣及密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+      if (receiver === currentAccount) {
+        errorBox.innerText = "不能轉帳給自己！";
+        errorBox.style.display = "block";
+        return;
+      }
+      var msAmount = parseInt(msAmountStr, 10);
+      if (isNaN(msAmount) || msAmount < 0 || msAmount > 74207381348100) {
+        errorBox.innerText = "轉帳數資幣必須為 0~74,207,381,348,100 之間的整數！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      // 計算約等於的新臺幣金額
+      const exchangeRate = 74207381348100;
+      var ntEquivalent = (msAmount / exchangeRate).toFixed(2);
+
+      document.getElementById("directMsCoinTransferConfirmText").innerText =
+        "你確定要轉帳 " + msAmount + " MS∮（約等於新臺幣 " + ntEquivalent + " 元）給 " + receiver + "？";
+      document.getElementById("directMsCoinTransferConfirmModal").style.display = "flex";
+    }
+
+    function confirmDirectMsCoinTransfer() {
+      document.getElementById("directMsCoinTransferConfirmModal").style.display = "none";
+      var transferor = document.getElementById("directMsTfTransferor").value.trim();
+      var receiver = document.getElementById("directMsTfReceiver").value.trim();
+      var msAmount = parseInt(document.getElementById("directMsTfAmount").value.trim(), 10);
+      var reason = document.getElementById("directMsTfReason").value.trim();
+      var password = document.getElementById("directMsTfPassword").value.trim();
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("數資幣轉帳成功！");
+          hideAllPages();
+          document.getElementById("msCoinZonePage").style.display = "block";
+          loadMsCoinData(); // 重新載入數資幣數據
+        } else {
+          var errorBox = document.getElementById("directMsTfError");
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).transferDirectMsCoin(transferor, receiver, msAmount, reason, password);
+    }
+    // 計算轉帳金額等於多少數資幣
+    function updateMsCoinEquivalent() {
+      var amountNT = parseFloat(document.getElementById("msTfAmount").value) || 0;
+      if (amountNT >= 0.01 && amountNT <= 0.99) {
+        const exchangeRate = new BigNumber('742073813481');
+        var msEquivalent = new BigNumber(Math.round(amountNT * 100)).multiply(exchangeRate); // 將新臺幣轉換為數資幣（乘以 100 因為是分）
+        document.getElementById("msTfMsEquivalent").value = msEquivalent.toFormattedString() + " MS∮";
+      } else {
+        document.getElementById("msTfMsEquivalent").value = "金額無效";
+      }
+    }
+
+    // 啟動數資幣轉帳
+    function initiateMsCoinTransfer() {
+      var receiver = document.getElementById("msTfReceiver").value.trim();
+      var amountStr = document.getElementById("msTfAmount").value.trim();
+      var reason = document.getElementById("msTfReason").value.trim();
+      var password = document.getElementById("msTfPassword").value.trim();
+      var errorBox = document.getElementById("msTfError");
+      errorBox.style.display = "none";
+      errorBox.innerText = "";
+
+      if (!receiver || !amountStr || !password) {
+        errorBox.innerText = "請填寫收款人、轉帳金額及密碼！";
+        errorBox.style.display = "block";
+        return;
+      }
+      if (receiver === currentAccount) {
+        errorBox.innerText = "不能轉帳給自己！";
+        errorBox.style.display = "block";
+        return;
+      }
+      var amount = parseFloat(amountStr);
+      if (isNaN(amount) || amount < 0.01 || amount > 0.99 || !/^\d*\.?\d{0,2}$/.test(amountStr)) {
+        errorBox.innerText = "轉帳金額必須為 0.01~0.99 之間的新臺幣，且小數點後最多兩位！";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      document.getElementById("msCoinTransferConfirmText").innerText =
+        "你確定要轉帳給 " + receiver + " " + amount + " 元（約等於 " + document.getElementById("msTfMsEquivalent").value + "）？";
+      document.getElementById("msCoinTransferConfirmModal").style.display = "flex";
+    }
+
+    // 確認數資幣轉帳
+    function confirmMsCoinTransfer() {
+      document.getElementById("msCoinTransferConfirmModal").style.display = "none";
+      var transferor = document.getElementById("msTfTransferor").value.trim();
+      var receiver = document.getElementById("msTfReceiver").value.trim();
+      var amountNT = parseFloat(document.getElementById("msTfAmount").value.trim());
+      var reason = document.getElementById("msTfReason").value.trim();
+      var password = document.getElementById("msTfPassword").value.trim();
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("數資幣轉帳成功！");
+          // 隱藏所有頁面，包括轉帳表單
+          hideAllPages();
+          // 顯示數資幣專區並確保內容正確加載
+          document.getElementById("msCoinZonePage").style.display = "block";
+          loadMsCoinData(); // 重新載入數資幣數據
+        } else {
+          var errorBox = document.getElementById("msTfError");
+          errorBox.innerText = result.error;
+          errorBox.style.display = "block";
+        }
+      }).transferMsCoin(transferor, receiver, amountNT, reason, password);
+      // 移除這一行，因為 hideAllPages() 已經處理了轉帳表單的隱藏
+      // document.getElementById("msCoinTransferForm").style.display = "none";
+    }
+
+    // 取消數資幣轉帳確認
+    function cancelMsCoinTransferConfirm() {
+      document.getElementById("msCoinTransferConfirmModal").style.display = "none";
+      // 僅隱藏確認視窗，保持轉帳表單顯示
+      document.getElementById("msCoinTransferForm").style.display = "block";
+      // 不需要呼叫 hideAllPages，避免隱藏其他頁面
+    }
+    // 限制數資幣轉帳金額輸入為兩位小數，且範圍為 0.01~0.99
+    function restrictMsCoinAmount() {
+      var input = document.getElementById("msTfAmount");
+      var value = input.value;
+
+      // 移除非數字和小數點的字符
+      value = value.replace(/[^0-9.]/g, '');
+
+      // 確保只有一個小數點
+      if (value.split('.').length > 2) {
+        value = value.substring(0, value.lastIndexOf('.')) + value.substring(value.lastIndexOf('.') + 1);
+      }
+
+      // 限制小數點後兩位
+      if (value.indexOf('.') !== -1) {
+        var decimalPart = value.split('.')[1];
+        if (decimalPart && decimalPart.length > 2) {
+          value = value.substring(0, value.indexOf('.') + 3);
+        }
+      }
+
+      // 確保值在 0.01~0.99 之間
+      var numValue = parseFloat(value) || 0;
+      if (numValue < 0.01) {
+        value = "0.01";
+      } else if (numValue > 0.99) {
+        value = "0.99";
+      }
+
+      input.value = value;
+      updateMsCoinEquivalent(); // 更新數資幣等價顯示
+    }
+    function cancelFractionalMsCoinTransferConfirm() {
+      document.getElementById("fracMsCoinTransferConfirmModal").style.display = "none";
+      // 僅隱藏確認視窗，保持轉帳表單顯示
+      document.getElementById("msCoinTransferForm").style.display = "block";
+      // 不需要呼叫 hideAllPages，避免隱藏其他頁面
+    }
+    /*==================== 成績登記 ====================*/
+    function showGradeRegistration() {
+      hideAllPages();
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>成績登記</h2>";
+      htmlContent += "<div id='gradeRegistrationContainer'><p class='text-center'>載入中...</p></div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"dashboard\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>回首頁</button>";
+      htmlContent += "</div>";
+      document.getElementById("gradeRegistrationPage").innerHTML = htmlContent;
+      document.getElementById("gradeRegistrationPage").style.display = "block";
+      loadGradeRegistrations();
+    }
+
+
+
+    function loadGradeRegistrations() {
+      google.script.run.withSuccessHandler(function (data) {
+        console.log("Received data from getActiveGradeRegistrations:", JSON.stringify(data));
+        var html = "<div class='space-y-4'>";
+
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          html += "<p class='text-center'>目前沒有可登記的成績。</p>";
+        } else {
+          var now = new Date();
+          var nowTimestamp = now.getTime();
+          console.log("Current time (frontend): " + nowTimestamp + " (" + now.toString() + ")");
+
+          data.forEach(function (reg) {
+            // 將後端返回的日期轉換為 Date 物件
+            var startDate = new Date(reg.startTime);
+            var endDate = new Date(reg.endTime);
+
+            // 檢查日期有效性
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+              console.error("Invalid date for registration:", reg);
+              return;
+            }
+
+            var startTimestamp = startDate.getTime();
+            var endTimestamp = endDate.getTime();
+
+            console.log("Registration " + reg.id + ": start=" + startTimestamp + " (" + startDate.toString() + "), end=" + endTimestamp + " (" + endDate.toString() + ")");
+
+            // 檢查是否在登記時間範圍內
+            if (nowTimestamp >= startTimestamp && nowTimestamp <= endTimestamp) {
+              html += "<div class='p-4 bg-white border-l-4 border-blue-500 shadow rounded'>";
+              html += "<p><span class='font-semibold'>科目：</span>" + reg.subject + "</p>";
+              html += "<p><span class='font-semibold'>成績名稱：</span>" + reg.name + "</p>";
+              html += "<p><span class='font-semibold'>開始時間：</span>" + startDate.toLocaleString() + "</p>";
+              html += "<p><span class='font-semibold'>截止時間：</span>" + endDate.toLocaleString() + "</p>";
+              html += "<p><span class='font-semibold'>滿分：</span>" + reg.maxScore + "</p>";
+              html += "<div class='mt-2'>";
+              html += "<label class='block text-gray-600 text-sm font-medium'>輸入成績（0~" + reg.maxScore + "）：</label>";
+              html += "<input type='number' id='gradeInput_" + reg.id + "' class='w-full p-2 border rounded mt-1' min='0' max='" + reg.maxScore + "' step='1' value='" + (reg.existingGrade || "") + "' />";
+              html += "</div>";
+              html += "<button onclick='saveGradeChange(" + reg.id + ", \"" + reg.subject + "\", \"" + reg.name + "\")' class='mt-2 btn bg-green-600 text-white p-2 rounded-btn hover:bg-green-700'>儲存成績</button>";
+              html += "</div>";
+            }
+          });
+        }
+        html += "</div>";
+        document.getElementById("gradeRegistrationContainer").innerHTML = html;
+
+        // 添加小老師管理按鈕
+        google.script.run.withSuccessHandler(function (isTeacher) {
+          if (isTeacher) {
+            var teacherBtn = "<button onclick='showTeacherGradeManagement()' class='w-full btn bg-purple-600 text-white p-responsive-3 rounded-btn hover:bg-purple-700 mt-4'>小老師管理頁面</button>";
+            document.getElementById("gradeRegistrationContainer").innerHTML += teacherBtn;
+          }
+        }).isSubjectTeacher(currentAccount);
+      }).withFailureHandler(function (error) {
+        console.error("Failed to load grade registrations:", error);
+        document.getElementById("gradeRegistrationContainer").innerHTML = "<p class='text-center text-red-500'>載入成績登記失敗，請稍後再試。</p>";
+      }).getActiveGradeRegistrations(currentAccount);
+    }
+
+    function saveGradeChange(regId, subject, testName) {
+      var gradeInput = document.getElementById("gradeInput_" + regId);
+      var grade = parseInt(gradeInput.value, 10);
+
+      if (isNaN(grade) || grade < 0) {
+        alert("請輸入有效的成績（非負整數）！");
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function (result) {
+        if (result.success) {
+          alert("成績登記成功！");
+          loadGradeRegistrations(); // 重新載入成績登記頁面
+        } else {
+          alert("儲存失敗：" + result.error);
+        }
+      }).withFailureHandler(function (error) {
+        console.error("Failed to save grade:", error);
+        alert("儲存成績時發生錯誤，請稍後再試。");
+      }).updateGrade(currentAccount, subject, testName, grade, regId);
+    }
+    function showTeacherGradeManagement() {
+      hideAllPages();
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>小老師管理頁面</h2>";
+      htmlContent += "<div class='space-y-4'>";
+      htmlContent += "<button onclick='showCreateGradeRegistration()' class='w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>建立新的成績登記</button>";
+      htmlContent += "<button onclick='showGradeRegistrationRecords()' class='w-full btn bg-green-500 text-white p-responsive-3 rounded-btn hover:bg-green-700'>成績登記紀錄</button>";
+      htmlContent += "<button onclick='showGradeModification()' class='w-full btn bg-gray-500 text-white p-responsive-3 rounded-btn hover:bg-gray-700' disabled>成績修改（暫無功能）</button>";
+      htmlContent += "</div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"gradeRegistrationPage\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>返回成績登記</button>";
+      htmlContent += "</div>";
+      document.getElementById("teacherGradeManagementPage").innerHTML = htmlContent;
+      document.getElementById("teacherGradeManagementPage").style.display = "block";
+    }
+
+    function showCreateGradeRegistration() {
+      hideAllPages();
+      google.script.run.withSuccessHandler(function (subjects) {
+        var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+        htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>建立新的成績登記</h2>";
+        htmlContent += "<div class='space-y-4'>";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>科目</label>";
+        htmlContent += "<select id='newSubject' class='w-full p-2 border rounded mt-1'>";
+        subjects.forEach(function (subject) {
+          htmlContent += "<option value='" + subject + "'>" + subject + "</option>";
+        });
+        htmlContent += "</select>";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>時間（考試或作業發放）</label>";
+        htmlContent += "<input type='datetime-local' id='newTime' class='w-full p-2 border rounded mt-1' />";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>名稱</label>";
+        htmlContent += "<input type='text' id='newName' class='w-full p-2 border rounded mt-1' />";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>登記開始時間</label>";
+        htmlContent += "<input type='datetime-local' id='newStartTime' class='w-full p-2 border rounded mt-1' />";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>登記截止時間</label>";
+        htmlContent += "<input type='datetime-local' id='newEndTime' class='w-full p-2 border rounded mt-1' />";
+        htmlContent += "<label class='block text-gray-600 text-sm font-medium'>滿分</label>";
+        htmlContent += "<input type='number' id='newMaxScore' class='w-full p-2 border rounded mt-1' min='0' />";
+        htmlContent += "</div>";
+        htmlContent += "<div class='mt-4 flex justify-between'>";
+        htmlContent += "<button onclick='hideAllPages();document.getElementById(\"teacherGradeManagementPage\").style.display=\"block\";' class='w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700'>取消</button>";
+        htmlContent += "<button onclick='confirmCreateGradeRegistration()' class='w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>確定</button>";
+        htmlContent += "</div>";
+        htmlContent += "</div>";
+        document.getElementById("createGradeRegistrationPage").innerHTML = htmlContent;
+        document.getElementById("createGradeRegistrationPage").style.display = "block";
+      }).getTeacherSubjects(currentAccount);
+    }
+    function confirmCreateGradeRegistration() {
+      var subject = document.getElementById("newSubject").value;
+      var time = document.getElementById("newTime").value;
+      var name = document.getElementById("newName").value.trim();
+      var startTime = document.getElementById("newStartTime").value;
+      var endTime = document.getElementById("newEndTime").value;
+      var maxScore = parseInt(document.getElementById("newMaxScore").value, 10);
+
+      if (!subject || !time || !name || !startTime || !endTime || isNaN(maxScore) || maxScore <= 0) {
+        alert("請填寫所有欄位，滿分必須為正數！");
+        return;
+      }
+
+      var confirmText = "確認建立成績登記？\n科目：" + subject + "\n時間：" + time + "\n名稱：" + name + "\n登記開始時間：" + startTime + "\n登記截止時間：" + endTime + "\n滿分：" + maxScore;
+      if (confirm(confirmText)) {
+        google.script.run.withSuccessHandler(function (result) {
+          console.log("createGradeRegistration result:", result); // 調試用
+          if (result.success) {
+            alert("成功建立成績登記！");
+            hideAllPages();
+            document.getElementById("teacherGradeManagementPage").style.display = "block";
+          } else {
+            alert("建立失敗：" + result.error);
+          }
+        }).withFailureHandler(function (error) {
+          console.error("createGradeRegistration failed:", error); // 調試用
+          alert("建立成績登記時發生錯誤：" + error.message);
+        }).createGradeRegistration(currentAccount, subject, time, name, startTime, endTime, maxScore);
+      }
+    }
+    /**
+     * 建立新的成績登記，記錄到成績登記工作表並更新成績查詢的第一個空白列
+     */
+    function createGradeRegistration(account, subject, time, name, startTime, endTime, maxScore) {
+      var ss = SpreadsheetApp.openById("1f4K0A5WRyMm1UDON176S2_srofk7Zse7wnymOp-vy_c");
+      var regSheet = ss.getSheetByName("成績登記");
+      var gradeSheet = ss.getSheetByName("成績查詢");
+
+      // 初始化「成績登記」工作表（若不存在）
+      if (!regSheet) {
+        regSheet = ss.insertSheet("成績登記");
+        regSheet.appendRow(["建立時間", "建立者", "時間", "科目", "名稱", "登記開始時間", "登記截止時間", "滿分", "ID"]);
+      }
+      if (!gradeSheet) {
+        return { success: false, error: "成績查詢工作表不存在" };
+      }
+
+      // 驗證輸入
+      if (!subject || !time || !name || !startTime || !endTime || isNaN(maxScore) || maxScore <= 0) {
+        return { success: false, error: "請填寫所有欄位，滿分必須為正數！" };
+      }
+
+      var startDate = new Date(startTime);
+      var endDate = new Date(endTime);
+      if (startDate >= endDate) {
+        return { success: false, error: "登記開始時間必須早於截止時間！" };
+      }
+
+      // 獲取最後一行並生成 ID
+      var lastRow = regSheet.getLastRow();
+      var id = lastRow > 0 ? Number(regSheet.getRange(lastRow, 9).getValue()) + 1 : 1;
+
+      // 記錄到成績登記工作表
+      var now = new Date();
+      regSheet.appendRow([now.toLocaleString(), account, time, subject, name, startDate.toLocaleString(), endDate.toLocaleString(), maxScore, id]);
+
+      // 獲取成績查詢的前四行數據（科目、名稱、考試時間、登記截止時間）
+      var gradeData = gradeSheet.getRange(1, 1, 4, gradeSheet.getLastColumn()).getValues();
+      var firstEmptyCol = -1;
+
+      // 從 C 列（索引 2）開始檢查每列，確保前四行都是空白
+      for (var col = 2; col < gradeData[0].length; col++) { // 從 C 列開始（索引 2）
+        var isEmpty = true;
+        for (var row = 0; row < 4; row++) { // 檢查前四行（0-based 索引）
+          if (gradeData[row][col] && gradeData[row][col].toString().trim() !== "") {
+            isEmpty = false;
+            break;
+          }
+        }
+        if (isEmpty) {
+          firstEmptyCol = col + 1; // 轉為 1-based 索引（Google Sheet 列號從 1 開始）
+          break;
+        }
+      }
+
+      // 如果找不到空白列，新增一列
+      if (firstEmptyCol === -1) {
+        firstEmptyCol = gradeData[0].length + 1; // 新增一列
+      }
+
+      // 在找到的空白列填入數據
+      gradeSheet.getRange(1, firstEmptyCol).setValue(subject); // 科目
+      gradeSheet.getRange(2, firstEmptyCol).setValue(name);    // 名稱
+      gradeSheet.getRange(3, firstEmptyCol).setValue(new Date(time)); // 考試時間
+      gradeSheet.getRange(4, firstEmptyCol).setValue(endDate); // 登記截止時間
+
+      Logger.log("成績登記成功: " + subject + " - " + name + " (ID: " + id + ") at column: " + firstEmptyCol);
+      return { success: true };
+    }
+    function showGradeRegistrationRecords() {
+      hideAllPages();
+      gradeRecordsPage = 1; // 重置分頁為第 1 頁
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>成績登記紀錄</h2>";
+      htmlContent += "<div class='mb-4'>";
+      htmlContent += "<label class='block text-gray-600 text-sm font-medium'>選擇科目（或全部）</label>";
+      htmlContent += "<select id='recordSubjectFilter' class='w-full p-2 border rounded mt-1' onchange='loadGradeRecords()'>";
+      htmlContent += "<option value=''>全部</option>";
+      htmlContent += "</select>";
+      htmlContent += "</div>";
+      htmlContent += "<div class='mb-4 text-center'><label>每頁顯示: </label><select id='gradeRecordsPerPageSelect' onchange='changeGradeRecordsPerPage()'>";
+      htmlContent += "<option value='10'>10</option><option value='20'>20</option><option value='30'>30</option><option value='50'>50</option>";
+      htmlContent += "</select></div>";
+      htmlContent += "<div id='gradeRecordsContainer'><p class='text-center'>載入中...</p></div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"teacherGradeManagementPage\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>返回管理頁面</button>";
+      htmlContent += "</div>";
+      document.getElementById("gradeRecordsPage").innerHTML = htmlContent;
+      document.getElementById("gradeRecordsPage").style.display = "block";
+
+      // 動態加載小老師的授課科目到下拉選單
+      google.script.run.withSuccessHandler(function (subjects) {
+        var select = document.getElementById("recordSubjectFilter");
+        subjects.forEach(function (subject) {
+          var option = document.createElement("option");
+          option.value = subject;
+          option.text = subject;
+          select.appendChild(option);
+        });
+        loadGradeRecords(); // 載入紀錄
+      }).getTeacherSubjects(currentAccount);
+    }
+
+    function loadGradeRecords() {
+      var subject = document.getElementById("recordSubjectFilter").value.trim();
+      if (!subject) subject = ''; // 確保未選擇時傳空字符串
+      google.script.run.withSuccessHandler(function (data) {
+        if (!data || !data.records) {
+          var html = "<div class='space-y-4'><p class='text-center'>無相關紀錄。</p></div>";
+          document.getElementById("gradeRecordsContainer").innerHTML = html;
+          gradeRecordsTotalPages = 1; // 重置分頁
+          return;
+        }
+
+        var htmlContent = "<div class='space-y-4'>";
+        data.records.forEach(function (record) {
+          htmlContent += "<div class='p-4 bg-white border-l-4 border-blue-500 shadow rounded'>";
+          htmlContent += "<p><span class='font-semibold'>時間：</span>" + record.time + "</p>";
+          htmlContent += "<p><span class='font-semibold'>變更者：</span>" + record.changer + "</p>";
+          htmlContent += "<p><span class='font-semibold'>科目：</span>" + record.subject + "</p>";
+          htmlContent += "<p><span class='font-semibold'>名稱：</span>" + record.name + "</p>";
+          htmlContent += "<p><span class='font-semibold'>原始資料：</span>" + (record.original || "無") + "</p>";
+          htmlContent += "<p><span class='font-semibold'>變更資料：</span>" + record.changed + "</p>";
+          htmlContent += "</div>";
+        });
+        if (htmlContent === "<div class='space-y-4'>") {
+          htmlContent += "<p class='text-center'>無相關紀錄。</p>";
+        }
+        htmlContent += "</div>";
+
+        // 添加分頁控制
+        gradeRecordsTotalPages = Math.ceil(data.total / gradeRecordsPerPage);
+        htmlContent += "<div class='mt-4 text-center'>";
+        if (gradeRecordsPage > 1) {
+          htmlContent += "<button onclick='prevGradeRecords()' class='btn bg-blue-600 text-white p-2 rounded-btn mr-2'>上一頁</button>";
+        }
+        htmlContent += "第 " + gradeRecordsPage + " 頁，共 " + gradeRecordsTotalPages + " 頁";
+        if (gradeRecordsPage < gradeRecordsTotalPages) {
+          htmlContent += "<button onclick='nextGradeRecords()' class='btn bg-blue-600 text-white p-2 rounded-btn ml-2'>下一頁</button>";
+        }
+        htmlContent += "</div>";
+
+        document.getElementById("gradeRecordsContainer").innerHTML = htmlContent;
+      }).withFailureHandler(function (error) {
+        var html = "<div class='space-y-4'><p class='text-center'>載入紀錄時發生錯誤。</p></div>";
+        document.getElementById("gradeRecordsContainer").innerHTML = html;
+        gradeRecordsTotalPages = 1; // 重置分頁
+      }).getGradeRecords(currentAccount, subject, gradeRecordsPerPage, (gradeRecordsPage - 1) * gradeRecordsPerPage);
+    }
+
+    function prevGradeRecords() {
+      if (gradeRecordsPage > 1) {
+        gradeRecordsPage--;
+        loadGradeRecords();
+      }
+    }
+
+    function nextGradeRecords() {
+      if (gradeRecordsPage < gradeRecordsTotalPages) {
+        gradeRecordsPage++;
+        loadGradeRecords();
+      }
+    }
+    function showGradeModification() {
+      hideAllPages();
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>成績修改（暫無功能）</h2>";
+      htmlContent += "<p class='text-center'>此功能尚未實現。</p>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"teacherGradeManagementPage\").style.display=\"block\";' class='w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4'>返回管理頁面</button>";
+      htmlContent += "</div>";
+      document.getElementById("gradeModificationPage").innerHTML = htmlContent;
+      document.getElementById("gradeModificationPage").style.display = "block";
+    }
+    function showfuckyou() {
+      hideAllPages();
+      var htmlContent = "<div class='p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card'>";
+      htmlContent += "<h2 class='text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center'>其它功能</h2>";
+      htmlContent += "<div class='space-y-4'>";
+      htmlContent += "<button onclick='alert(\"此功能尚未實作！67\")' class='w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700'>最新活動</button>";
+      htmlContent += "<button onclick='alert(\"你先別急，快好了！\")' class='w-full btn bg-green-500 text-white p-responsive-3 rounded-btn hover:bg-green-700'>股票專區</button>";
+      htmlContent += "<button onclick='alert(\"此功能尚未實作！\")' class='w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700'>彩券專區</button>";
+      htmlContent += "<button onclick='alert(\"此功能尚未實作！\")' class='w-full btn bg-orange-500 text-white p-responsive-3 rounded-btn hover:bg-orange-700'>娛樂專區</button>";
+      htmlContent += "</div>";
+      htmlContent += "<button onclick='hideAllPages();document.getElementById(\"dashboard\").style.display=\"block\";' class='w-full btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700 mt-4'>回首頁</button>";
+      htmlContent += "</div>";
+
+      document.getElementById("incompleteFeaturesPage").innerHTML = htmlContent;
+      document.getElementById("incompleteFeaturesPage").style.display = "block";
+    }
+    // 顯示股票專區
+    function showStockZone() {
+      hideAllPages();
+      document.getElementById("stockZonePage").style.display = "block";
+    }
+
+    // 顯示快速下單頁面
+    function showQuickOrder() {
+      hideAllPages();
+      document.getElementById("quickOrderPage").style.display = "block";
+      resetQuickOrderForm();
+    }
+
+    // 重置快速下單表單
+    function resetQuickOrderForm() {
+      selectTradeType("whole");
+      selectTradeKind("spot");
+      selectCondition("roc");
+      selectPriceType("limit");
+      selectAction("buy");
+      document.getElementById("quantity").value = 1;
+      document.getElementById("price").value = 1;
+    }
+
+    // 選擇交易類型
+    function selectTradeType(type) {
+      document.getElementById("tradeWhole").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("tradeAfter").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("tradeOdd").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("tradeWhole").classList.add("bg-gray-400");
+      document.getElementById("tradeAfter").classList.add("bg-gray-400");
+      document.getElementById("tradeOdd").classList.add("bg-gray-400");
+
+      if (type === "whole") {
+        document.getElementById("tradeWhole").classList.add("active-trade", "bg-blue-500");
+      } else if (type === "after") {
+        document.getElementById("tradeAfter").classList.add("active-trade", "bg-blue-500");
+      } else if (type === "odd") {
+        document.getElementById("tradeOdd").classList.add("active-trade", "bg-blue-500");
+      }
+    }
+
+    // 選擇交易種類
+    function selectTradeKind(kind) {
+      document.getElementById("typeSpot").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("typeMargin").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("typeShort").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("typeSpot").classList.add("bg-gray-400");
+      document.getElementById("typeMargin").classList.add("bg-gray-400");
+      document.getElementById("typeShort").classList.add("bg-gray-400");
+
+      if (kind === "spot") {
+        document.getElementById("typeSpot").classList.add("active-trade", "bg-blue-500");
+      } else if (kind === "margin") {
+        document.getElementById("typeMargin").classList.add("active-trade", "bg-blue-500");
+      } else if (kind === "short") {
+        document.getElementById("typeShort").classList.add("active-trade", "bg-blue-500");
+      }
+    }
+
+    // 選擇條件
+    function selectCondition(condition) {
+      document.getElementById("conditionROC").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("conditionIOC").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("conditionFOK").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("conditionROC").classList.add("bg-gray-400");
+      document.getElementById("conditionIOC").classList.add("bg-gray-400");
+      document.getElementById("conditionFOK").classList.add("bg-gray-400");
+
+      if (condition === "roc") {
+        document.getElementById("conditionROC").classList.add("active-trade", "bg-blue-500");
+      } else if (condition === "ioc") {
+        document.getElementById("conditionIOC").classList.add("active-trade", "bg-blue-500");
+      } else if (condition === "fok") {
+        document.getElementById("conditionFOK").classList.add("active-trade", "bg-blue-500");
+      }
+    }
+
+    // 選擇價格類型
+    function selectPriceType(type) {
+      document.getElementById("priceLimit").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("priceMarket").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("priceLimit").classList.add("bg-gray-400");
+      document.getElementById("priceMarket").classList.add("bg-gray-400");
+
+      var priceOption = document.getElementById("priceOption");
+      if (type === "limit") {
+        document.getElementById("priceLimit").classList.add("active-trade", "bg-blue-500");
+        priceOption.disabled = false;
+      } else if (type === "market") {
+        document.getElementById("priceMarket").classList.add("active-trade", "bg-blue-500");
+        priceOption.disabled = true;
+      }
+    }
+
+    // 選擇買賣動作
+    function selectAction(action) {
+      document.getElementById("actionBuy").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("actionSell").classList.remove("active-trade", "bg-blue-500");
+      document.getElementById("actionBuy").classList.add("bg-gray-400");
+      document.getElementById("actionSell").classList.add("bg-gray-400");
+
+      if (action === "buy") {
+        document.getElementById("actionBuy").classList.add("active-trade", "bg-blue-500");
+      } else if (action === "sell") {
+        document.getElementById("actionSell").classList.add("active-trade", "bg-blue-500");
+      }
+    }
+
+    // 調整單位數量
+    function adjustQuantity(change) {
+      var quantityInput = document.getElementById("quantity");
+      var value = parseInt(quantityInput.value) + change;
+      if (value >= 1) {
+        quantityInput.value = value;
+      }
+    }
+
+    // 調整價格
+    function adjustPrice(change) {
+      var priceInput = document.getElementById("price");
+      var value = parseInt(priceInput.value) + change;
+      if (value >= 1) {
+        priceInput.value = value;
+      }
+    }
+
+    // 提交快速下單
+    function submitQuickOrder() {
+      var stockName = document.getElementById("stockName").value;
+      var tradeType = document.querySelector("#quickOrderPage .active-trade[id^='trade']").id.replace("trade", "").toLowerCase();
+      var tradeKind = document.querySelector("#quickOrderPage .active-trade[id^='type']").id.replace("type", "").toLowerCase();
+      var condition = document.querySelector("#quickOrderPage .active-trade[id^='condition']").id.replace("condition", "").toLowerCase();
+      var priceType = document.querySelector("#quickOrderPage .active-trade[id^='price']").id.replace("price", "").toLowerCase();
+      var priceOption = document.getElementById("priceOption").value;
+      var action = document.querySelector("#quickOrderPage .active-trade[id^='action']").id.replace("action", "").toLowerCase();
+      var quantity = parseInt(document.getElementById("quantity").value);
+      var price = parseInt(document.getElementById("price").value);
+
+      var orderDetails = {
+        stockName: stockName,
+        tradeType: tradeType,
+        tradeKind: tradeKind,
+        condition: condition,
+        priceType: priceType === "limit" ? `${priceType} (${priceOption})` : priceType,
+        action: action,
+        quantity: quantity,
+        price: priceType === "market" ? "市價" : price
+      };
+
+      // 這裡可以將 orderDetails 傳送到後端進行處理
+      console.log("下單詳情:", orderDetails);
+      alert("下單成功！\n" + JSON.stringify(orderDetails, null, 2));
+      hideAllPages();
+      document.getElementById("stockZonePage").style.display = "block";
+    }
+
+    /*==================== Gemini AI 聊天邏輯 ====================*/
+    function showGeminiAi() {
+      hideAllPages();
+      document.getElementById("GeminiAi").style.display = "block";
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const sendBtn = document.getElementById('send-button');
+      const userInput = document.getElementById('user-input');
+      const chatMessages = document.getElementById('chat-messages');
+      const typingIndicator = document.getElementById('typing-indicator');
+
+      if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+      }
+      if (userInput) {
+        userInput.addEventListener('keypress', function (e) {
+          if (e.key === 'Enter') sendMessage();
+        });
+      }
+
+      function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        // 新增使用者訊息
+        appendMessage('user', text);
+        userInput.value = '';
+
+        // 顯示打字中
+        typingIndicator.style.display = 'block';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 呼叫 AI (模擬)
+        google.script.run
+          .withSuccessHandler(function (response) {
+            typingIndicator.style.display = 'none';
+            appendMessage('ai', response);
+          })
+          .withFailureHandler(function () {
+            typingIndicator.style.display = 'none';
+            appendMessage('ai', '對不起，我現在無法連線。');
+          })
+          .getGeminiResponse(text);
+      }
+
+      function appendMessage(sender, text) {
+        const div = document.createElement('div');
+        div.className = `message ${sender}-message`;
+        div.innerHTML = `<div class="message-content">${text}</div>`;
+        chatMessages.insertBefore(div, typingIndicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      const clearBtn = document.getElementById('clear-button');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+          const messages = chatMessages.querySelectorAll('.message:not(:first-child)');
+          messages.forEach(m => m.remove());
+        });
+      }
+    });
+
+    /*==================== 班費收款邏輯 ====================*/
+    var selectedStudentsForCollection = [];
+
+    function openConfirmModal(students) {
+      selectedStudentsForCollection = students;
+      const list = document.getElementById('confirmStudentList');
+      list.innerHTML = students.map(s => `<li>${s}</li>`).join('');
+      document.getElementById('classFeeCollectionConfirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('classFeeCollectionConfirmModal').classList.add('hidden');
+    }
+
+    function submitClassFeeCollection() {
+      const btn = document.querySelector('#classFeeCollectionConfirmModal button[onclick="submitClassFeeCollection()"]');
+      btn.disabled = true;
+      google.script.run.withSuccessHandler(function (result) {
+        btn.disabled = false;
+        if (result.success) {
+          alert('收款確認成功！');
+          closeConfirmModal();
+          // 重新載入資料或更新 UI
+        } else {
+          alert('失敗：' + result.error);
+        }
+      }).confirmClassFeeCollection(selectedStudentsForCollection, currentAccount);
+    }
+
+    function updateScreenSize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const widthElem = document.getElementById('screenWidth');
+      const heightElem = document.getElementById('screenHeight');
+      if (widthElem) widthElem.innerText = width;
+      if (heightElem) heightElem.innerText = height;
+
+      // 偵測 Card 寬度 (rem)
+      const card = document.querySelector('.card');
+      const cardRemElem = document.getElementById('cardRemWidth');
+      if (card && cardRemElem) {
+        const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const cardWidthPx = card.offsetWidth;
+        const cardWidthRem = (cardWidthPx / rootFontSize).toFixed(2);
+        cardRemElem.innerText = cardWidthRem;
+      }
+    }
+    window.addEventListener('resize', updateScreenSize);
+    window.addEventListener('load', updateScreenSize);
+
+  </script>
+
+
+
+  <!-- 載入CSS -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="最新公告.css">
+  <link rel="stylesheet" href="個人通知.css">
+  <link rel="stylesheet" href="Gemini.css">
+
+</head>
+
+<body class="flex items-center justify-center min-h-screen ">
+  <script src="./班費請款.js"></script>
+  <script src="./班費查詢.js"></script>
+  <script src="./個人資料.js"></script>
+  <script src="./公告查詢.js"></script>
+  <script src="./帳號紀錄.js"></script>
+  <script src="./服務條款.js"></script>
+  <script src="./電子存摺.js"></script>
+  <script src="./販賣部結帳.js"></script>
+  <script src="./個人通知.js"></script>
+  <!-- 以下檔案不存在，暫時註解處理 -->
+  <!-- <script src="./股票.js"></script> -->
+  <!-- <script src="./LINE綁定.js"></script> -->
+  <!-- <script src="./Gemini.js"></script> -->
+  <!-- <script src="./新增管理頁面.js"></script> -->
+  <div class="card">
+
+    <!-- 登入畫面 改好vw -->
+    <div id="loginForm">
+      <div class="flex flex-col items-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/295/295128.png" alt="Login Icon"
+          class="w-[15%] h-[10%] mb-3" />
+        <h1 class="text-[178%] font-bold text-gray-700">登入系統</h1>
+        <h2 class="text-[125%] text-gray-550">歡迎來到班級平台</h2>
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-[107%] font-medium">帳號</label>
+        <input type="text" id="account"
+          class="w-full  text-[89%] p-[2%] border border-gray-300 rounded-btn mt-[1vw] focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+      </div>
+      <div class="mt-4 relative">
+        <label class="block text-gray-600 text-[107%] font-medium">密碼</label>
+        <div class="relative">
+          <input type="password" id="password"
+            class="w-full  text-[89%] p-[2%] border border-gray-300 rounded-btn mt-[1vw] focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10"
+            placeholder="密碼預設為身分證字號後四碼" />
+          <span class="toggle-eye" onmousedown="togglePassword('password', true)"
+            onmouseup="togglePassword('password', false)" ontouchstart="togglePassword('password', true)"
+            ontouchend="togglePassword('password', false)">👁️</span>
+        </div>
+      </div>
+      <div class="mt-2 flex items-center">
+        <input type="checkbox" id="rememberPassword" class="mr-1.5 dynamic-checkbox"
+          onchange="toggleRememberPassword()">
+        <label for="rememberPassword" class="text-gray-600 text-[89%]">記住密碼（公用電腦請勿勾選）</label>
+      </div>
+      <p id="error" class="text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded"></p>
+      <button onclick="login()"
+        class="w-full btn bg-blue-600 text-[107%] text-white p-[2%]  mt-[3%] hover:bg-blue-700">登入</button>
+    </div>
+
+    <!-- 儀表板 改好-->
+    <div id="dashboard" class="hidden text-center">
+      <div class="header123">
+        <h3 class="wcome">歡迎來到314的班級平台</h3>
+        <div class="btn-container">
+          <button onclick="showGeminiAi()" class="custom-button">⭐️</button>
+          <button onclick="showPersonalNotifications()" class="custom-button">🔔</button>
+          <button onclick="showSettingsPage()" class="custom-button">⚙️</button>
+        </div>
+      </div>
+      <div class="account-card">
+        <div class="card-left">
+          <div class="balance-header">帳戶餘額</div>
+          <p class="numberNT">NT$ <span id="balanceNT" class="text-blue-700 font-semibold"></span></p>
+          <p class="numberMS">數資幣(MS∮) <span id="balanceMS" class="font-semibold" style="color: #6429ef;"></span></p>
+          <div class="balance-header">帳號：<span id="userName"></span></div>
+        </div>
+      </div>
+      <br>
+      <!-- 按鈕順序 -->
+      <!-- 管理頁面按鈕（僅管理員顯示） -->
+      <button id="adminPageBtn" onclick="showAdminPage()"
+        class="w-full btn bg-gray-600 text-white p-[2%] rounded-btn  hover:bg-gray-700" style="display:none;">
+        <img src="https://cdn-icons-png.flaticon.com/512/1256/1256650.png" alt="Admin Icon"
+          class="inline w-5 h-5 mr-2" />管理頁面</button>
+      <div class="cas">
+        <button onclick="showPersonalData()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E5%80%8B%E4%BA%BA%E8%B3%87%E6%96%99-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>個人資料
+        </button>
+        <button onclick="showAccountRecords()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E5%B8%B3%E8%99%9F%E7%B4%80%E9%8C%84-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>帳號紀錄
+        </button>
+        <button onclick="showPassbook()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E9%9B%BB%E5%AD%90%E5%AD%98%E6%91%BA-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>電子存摺
+        </button>
+        <button onclick="showAnnouncement()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E5%85%AC%E5%91%8A%E6%9F%A5%E8%A9%A2-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>公告查詢
+        </button>
+        <button onclick="showScoreQuery()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E6%88%90%E7%B8%BE%E6%9F%A5%E8%A9%A2-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>成績查詢
+        </button>
+        <button onclick="showGradeRegistration()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E6%88%90%E7%B8%BE%E7%99%BB%E8%A8%98-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>成績登記
+        </button>
+        <button onclick="showClassFeeQuery()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E7%8F%AD%E8%B2%BB%E6%9F%A5%E8%A9%A2-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>班費查詢
+        </button>
+        <button onclick="showClassFeeRequestForm()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E7%8F%AD%E8%B2%BB%E8%AB%8B%E6%AC%BE-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>班費請款
+        </button>
+        <button onclick="showTransferForm()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E8%BD%89%E5%B8%B3%E6%9C%8D%E5%8B%99-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>轉帳服務
+        </button>
+        <button onclick="showMsCoinZone()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E6%95%B8%E8%B3%87%E5%B9%A3%E5%B0%88%E5%8D%80-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>數資幣專區
+        </button>
+        <button onclick="showCashierForm()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E8%B2%A9%E8%B3%A3%E9%83%A8%E7%B5%90%E5%B8%B3-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>販賣部結帳
+        </button>
+        <button onclick="showfuckyou()" class="main_button btn">
+          <div class="githubicon-container"><img
+              src="https://github.com/Sgoat52/class14websiteimage/blob/main/%E5%85%B6%E4%BB%96%E5%8A%9F%E8%83%BD-%E7%99%BD.png?raw=true"
+              class="githubicon"></div><br>其它功能
+        </button>
+      </div>
+      <button onclick="logout()"
+        class="w-full btn bg-red-600 text-white p-[2%] rounded-btn  mt-[2.5%] hover:bg-red-700">🚪登出</button>
+      <p><br>版本:20250620 beta1</p>
+      <div id="debugInfo" class="mt-2 text-gray-500 text-xs italic space-y-1 text-center">
+        <div>螢幕尺寸: <span id="screenWidth"></span> x <span id="screenHeight"></span> px</div>
+        <div>卡片寬度: <span id="cardRemWidth"></span> rem</div>
+      </div>
+    </div>
+
+    <!-- 新增：販賣部結帳系統介面 改好-->
+    <div id="cashierForm" class="hidden">
+      <div class="flex flex-col items-center">
+        <h2 class="text-[150%] font-bold text-gray-700">數資班販賣部結帳系統</h2>
+      </div>
+      <!-- 商品類別：下拉選單，選項由 Google Sheet 讀取，無預設選取 -->
+      <div class="mt-4" id="item_0">
+        <h3 class="text[100%] font-semibold mb-2">商品項目 1</h3>
+        <div class="mt-[1.5%]">
+          <label class="block text-gray-600 text-[80%] font-medium">商品類別</label>
+          <select id="cfCategory_0"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none"
+            onchange="onCategoryChange(0)">
+            <!-- 選項由 JS 透過 google.script.run 動態加入，無預設選取 -->
+          </select>
+        </div>
+        <!-- 商品項目：依照商品類別變動 -->
+        <div id="cfItemContainer_0" class="mt-[2.5%%]" style="display:none;">
+          <label class="block text-gray-600 text-[80%] font-medium">商品項目</label>
+          <select id="cfItem_0" class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none"
+            onchange="onItemChange(0)">
+            <!-- 當類別非「其他」時，項目由後端讀取 -->
+          </select>
+        </div>
+        <!-- 當選擇其他時，讓使用者自行輸入商品名稱 -->
+        <div id="cfCustomItemContainer_0" class="mt-4" style="display:none;">
+          <label class="block text-gray-600 text-[80%] font-medium">請輸入商品名稱</label>
+          <input type="text" id="cfCustomItem_0"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" value="" />
+        </div>
+        <!-- 新增購買數量欄位 -->
+        <div class="mt-[2.5%]">
+          <label class="block text-gray-600 text-[80%] font-medium">購買數量</label>
+          <input type="number" id="cfQuantity_0"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" value="1" min="1"
+            onchange="updatePrice(0)" />
+        </div>
+        <!-- 金額欄位：若選擇非其他則自動顯示，不可修改；若為其他則可輸入 -->
+        <div class="mt-[2.5%]">
+          <label class="block text-gray-600 text-[80%] font-medium">金額</label>
+          <input type="number" id="cfPrice_0"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" readonly
+            value="0" />
+        </div>
+      </div>
+      <!-- 動態新增的商品項目容器 -->
+      <div id="additionalItemsContainer"></div>
+      <!-- 新增一項按鈕 -->
+      <div class="mt-[3%]">
+        <button id="addItemBtn" onclick="addNewItem()"
+          class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn  hover:bg-blue-700">新增一項</button>
+      </div>
+      <!-- 點數資訊與折抵選項（取代原密碼欄位） -->
+      <div class="mt-4">
+        <p id="points-display" class="text-gray-700">您的數資points：載入中... <span onclick="showPointsExplanation()"
+            class="cursor-pointer text-blue-500">?</span></p>
+        <p id="expiring-points" class="text-gray-600 text-[80%]">本週（7天內）即將到期 載入中...</p>
+        <div class="mt-2 flex items-center">
+          <input type="checkbox" id="use-points" class="mr-2 dynamic-checkbox " onchange="toggleDiscountInput()">
+          <label for="use-points" class="text-gray-600 text-[100%] mr-2">折抵</label>
+          <input type="number" id="discount-input"
+            class="w-[15%] p-2 border border-gray-300 rounded-btn focus:outline-none" placeholder="金額" disabled min="0"
+            step="1">
+          <span class="ml-2 text-gray-600">元</span>
+        </div>
+      </div>
+      <p id="cfError" class="text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded"></p>
+      <!-- 取消 / 確認結帳按鈕 -->
+      <div class="mt-6 flex justify-between">
+        <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+          class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+        <button onclick="initiateCashierCheckout()"
+          class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認結帳</button>
+      </div>
+      <!-- 點數說明模態框 -->
+      <div id="points-explanation" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-btn shadow-lg">
+          <h3 class="font-bold">什麼是數資points？</h3>
+          <p class="mt-2">數資points 是販賣部回饋的點數，每消費 1 元獲得 1 點，300 點可折抵 1 元。有效期為最後一次消費後 30 天。</p>
+          <button onclick="hidePointsExplanation()"
+            class="mt-4 btn bg-blue-600 p-[2%] text-white p-2 rounded-0.5rem">關閉</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!--數資幣介面-->
+    <div id="msCoinExchangeForm" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center">數資幣兌換</h2>
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium">兌換金額 (新臺幣整數)</label>
+          <input type="number" id="msCoinExchangeAmount" class="w-full p-2 border rounded mt-1" min="1" />
+        </div>
+        <div class="mb-4 relative">
+          <label class="block text-gray-600 text-sm font-medium">密碼</label>
+          <div class="relative">
+            <input type="password" id="msCoinExchangePassword" class="w-full p-2 border rounded mt-1" />
+            <span class="toggle-eye" onmousedown="togglePassword('msCoinExchangePassword', true)"
+              onmouseup="togglePassword('msCoinExchangePassword', false)"
+              ontouchstart="togglePassword('msCoinExchangePassword', true)"
+              ontouchend="togglePassword('msCoinExchangePassword', false)">👁️</span>
+          </div>
+        </div>
+        <p id="msCoinExchangeError" class="text-red-500 text-sm mb-4 hidden"></p>
+        <div class="flex justify-between">
+          <button onclick="hideAllPages();document.getElementById('msCoinZonePage').style.display='block';"
+            class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+          <button onclick="confirmMsCoinExchange()"
+            class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認兌換</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cashExchangeForm" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center">現金兌換</h2>
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium">兌換金額 (新臺幣整數)</label>
+          <input type="number" id="cashExchangeAmount" class="w-full p-2 border rounded mt-1" min="1" />
+        </div>
+        <div class="mb-4 relative">
+          <label class="block text-gray-600 text-sm font-medium">密碼</label>
+          <div class="relative">
+            <input type="password" id="cashExchangePassword" class="w-full p-2 border rounded mt-1" />
+            <span class="toggle-eye" onmousedown="togglePassword('cashExchangePassword', true)"
+              onmouseup="togglePassword('cashExchangePassword', false)"
+              ontouchstart="togglePassword('cashExchangePassword', true)"
+              ontouchend="togglePassword('cashExchangePassword', false)">👁️</span>
+          </div>
+        </div>
+        <p id="cashExchangeError" class="text-red-500 text-sm mb-4 hidden"></p>
+        <div class="flex justify-between">
+          <button onclick="hideAllPages();document.getElementById('msCoinZonePage').style.display='block';"
+            class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+          <button onclick="confirmCashExchange()"
+            class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認兌換</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="msCoinInfoPage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,5vw,2.5rem)] font-bold mb-4 text-center">數資幣說明</h2>
+        <p class="mb-4">數資幣（MS∮）是由數資中央銀行發行的貨幣，以新臺幣為銀行準備金(共新臺幣 2000 元)，1 新臺幣可兌換為 74,207,381,348,100 數資幣，目前共發行
+          148,414,762,696,200,000 數資幣(相當於新臺幣 2000 元)，若增加發行亦會增加準備金，以維持貨幣價值。兌換僅限整數新臺幣、每日最高兌換 3,710,369,067,405,000
+          數資幣(新臺幣50元)且新臺幣餘額為負時不得向數資銀行兌換數資幣。</p>
+        <button onclick="hideAllPages();document.getElementById('msCoinZonePage').style.display='block';"
+          class="w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">返回</button>
+      </div>
+    </div>
+
+    <div id="msCoinTransferForm" class="hidden">
+      <div class="flex flex-col items-center">
+        <h2 class="text-2xl font-bold text-gray-700">數資幣轉帳</h2>
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳人帳號</label>
+        <input type="text" id="msTfTransferor" readonly
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100" />
+        <div id="msTfCurrentBalance" class="mt-2 text-sm text-gray-700"></div> <!-- 顯示數資幣餘額 -->
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">收款人帳號</label>
+        <input type="text" id="msTfReceiver"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" />
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳金額（新臺幣，0.01~0.99 元）</label>
+        <input type="number" id="msTfAmount" step="0.01" min="0.01" max="0.99"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none"
+          oninput="restrictMsCoinAmount()" placeholder="0.01~0.99" />
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">等於數資幣</label>
+        <input type="text" id="msTfMsEquivalent" readonly
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100" />
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳原因（非必填）</label>
+        <input type="text" id="msTfReason"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" />
+      </div>
+      <div class="mt-4 relative">
+        <label class="block text-gray-600 text-sm font-medium">密碼</label>
+        <div class="relative">
+          <input type="password" id="msTfPassword"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none pr-10" />
+          <span class="toggle-eye" onmousedown="togglePassword('msTfPassword', true)"
+            onmouseup="togglePassword('msTfPassword', false)" ontouchstart="togglePassword('msTfPassword', true)"
+            ontouchend="togglePassword('msTfPassword', false)">👁️</span>
+        </div>
+      </div>
+      <p id="msTfError" class="text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded"></p>
+      <div class="mt-6 flex justify-between">
+        <button onclick="hideAllPages();document.getElementById('msCoinZonePage').style.display='block';"
+          class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+        <button onclick="initiateMsCoinTransfer()"
+          class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認轉帳</button>
+      </div>
+    </div>
+
+    <!-- 個人資料頁面 -->
+    <div id="personalDataPage" class="hidden">
+      <div class='personal-data-card'>
+        <h2 class='personal-data-title'>個人資料</h2>
+        <div id='personalDataContainer'>
+          <p class='text-center'>載入中...</p>
+        </div>
+        <button onclick='hideAllPages();document.getElementById("dashboard").style.display="block";'
+          class='personal-data-btn'>回首頁</button>
+      </div>
+    </div>
+
+    <!-- 修改密碼區塊 -->
+    <div id="changePasswordForm" class="hidden">
+      <div id="forceChangeMessage" class="text-red-500 text-sm mb-2"></div>
+      <div class="flex flex-col items-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828641.png" alt="修改密碼" class="w-16 h-16 mb-3" />
+        <h2 class="text-2xl font-bold text-gray-700">修改密碼(個資修改再等等)</h2>
+      </div>
+      <div class="mt-6">
+        <label for="cpAccount" class="block text-gray-600 text-sm font-medium">帳號</label>
+        <input type="text" id="cpAccount" readonly
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100" />
+      </div>
+      <!-- 原始密碼 -->
+      <div class="mt-4">
+        <label for="oldPassword" class="block text-gray-600 text-sm font-medium">原始密碼</label>
+        <div class="relative">
+          <input type="password" id="oldPassword"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10" />
+          <span class="toggle-eye" onmousedown="togglePassword('oldPassword', true)"
+            onmouseup="togglePassword('oldPassword', false)" ontouchstart="togglePassword('oldPassword', true)"
+            ontouchend="togglePassword('oldPassword', false)">👁️</span>
+        </div>
+      </div>
+      <!-- 新密碼 -->
+      <div class="mt-4">
+        <label for="newPassword" class="block text-gray-600 text-sm font-medium">新密碼 (至少6位)</label>
+        <div class="relative">
+          <input type="password" id="newPassword" oninput="checkPasswordStrength()"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10" />
+          <span class="toggle-eye" onmousedown="togglePassword('newPassword', true)"
+            onmouseup="togglePassword('newPassword', false)" ontouchstart="togglePassword('newPassword', true)"
+            ontouchend="togglePassword('newPassword', false)">👁️</span>
+        </div>
+      </div>
+      <!-- 密碼強度指示器 -->
+      <div id="passwordStrengthIndicator" class="mt-2 text-sm"></div>
+      <!-- 確認新密碼 -->
+      <div class="mt-4">
+        <label for="confirmPassword" class="block text-gray-600 text-sm font-medium">確認新密碼</label>
+        <div class="relative">
+          <input type="password" id="confirmPassword"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none focus:ring-2 focus:ring-blue-400 transition pr-10" />
+          <span class="toggle-eye" onmousedown="togglePassword('confirmPassword', true)"
+            onmouseup="togglePassword('confirmPassword', false)" ontouchstart="togglePassword('confirmPassword', true)"
+            ontouchend="togglePassword('confirmPassword', false)">👁️</span>
+        </div>
+      </div>
+      <p id="cpError" class="text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded"></p>
+      <div class="mt-6 flex justify-between">
+        <button id="cancelChangeBtn" onclick="cancelChangePassword()"
+          class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+        <button onclick="updatePassword()"
+          class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認修改</button>
+      </div>
+    </div>
+
+    <!-- 帳號紀錄區塊 -->
+    <div id="accountRecordsPage" class="hidden">
+      <div id="accountRecordsContainer">
+        <h2 class='account-records-title'><span id="accountRecordsUserName"></span>您好，以下是您的帳號紀錄</h2>
+        <div class='account-records-controls'>
+          <label>每頁顯示: </label>
+          <select id='accountRecordsPerPageSelect' onchange='changeAccountRecordsPerPage()'
+            class="account-records-select">
+            <option value='10'>10</option>
+            <option value='20'>20</option>
+            <option value='30'>30</option>
+            <option value='50'>50</option>
+          </select>
+        </div>
+        <div id='recordsData' class='account-records-table-container'>
+          <p class='text-center'>載入中...</p>
+        </div>
+        <button onclick='hideAllPages();document.getElementById("dashboard").style.display="block";'
+          class='account-records-btn'>回首頁</button>
+      </div>
+    </div>
+
+    <!-- 轉帳服務區塊 -->
+    <div id="transferForm" class="hidden">
+      <div class="flex flex-col items-center">
+        <h2 class="text-2xl font-bold text-gray-700">轉帳服務</h2>
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳人帳號</label>
+        <input type="text" id="tfTransferor" readonly
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 bg-gray-100" />
+        <div id="tfCurrentBalance" class="mt-2 text-sm text-gray-700"></div>
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">收款人帳號(214班:int(座號)+210464)</label>
+        <input type="text" id="tfReceiver"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" />
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳金額 新臺幣_元</label>
+        <input type="number" id="tfAmount"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none"
+          placeholder="1~3000" />
+      </div>
+      <div class="mt-4">
+        <label class="block text-gray-600 text-sm font-medium">轉帳原因 (非必填)</label>
+        <input type="text" id="tfReason"
+          class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none" />
+      </div>
+      <div class="mt-4 relative">
+        <label class="block text-gray-600 text-sm font-medium">密碼</label>
+        <div class="relative">
+          <input type="password" id="tfPassword"
+            class="w-full p-responsive-3 border border-gray-300 rounded-btn mt-1 focus:outline-none pr-10" />
+          <span class="toggle-eye" onmousedown="togglePassword('tfPassword', true)"
+            onmouseup="togglePassword('tfPassword', false)" ontouchstart="togglePassword('tfPassword', true)"
+            ontouchend="togglePassword('tfPassword', false)">👁️</span>
+        </div>
+      </div>
+      <p id="tfError" class="text-red-500 text-sm mt-2 hidden bg-red-100 p-2 rounded"></p>
+      <div class="mt-6 flex justify-between">
+        <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+          class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+        <button onclick="initiateTransfer()"
+          class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">確認轉帳</button>
+      </div>
+    </div>
+
+    <!-- 電子存摺區塊 -->
+    <div id="passbookPage" class="hidden">
+      <h2 class='passbook-title'><span id="passbookUserName"></span>您好，以下是您的電子存摺</h2>
+      <div class='passbook-controls'>
+        <label>每頁顯示: </label>
+        <select id='passbookPerPageSelect' onchange='changePassbookPerPage()' class="passbook-select">
+          <option value='10'>10</option>
+          <option value='20'>20</option>
+          <option value='30'>30</option>
+          <option value='50'>50</option>
+        </select>
+      </div>
+      <div id='passbookTable' class='passbook-table-container'>
+        <p class='text-center'>載入中...</p>
+      </div>
+      <button onclick='backToDashboardFromPassbook()' class='passbook-btn'>回首頁</button>
+    </div>
+
+    <!-- 公告查詢頁面 -->
+    <div id="announcementPage" class="hidden"></div>
+
+    <!-- 在 </div>（卡片結束）之前添加 -->
+    <div id="personalNotificationsPage" class="hidden">
+      <div class='notification-wrapper'>
+        <h2 class='notification-title'>個人通知</h2>
+        <button id='markAllReadBtn' class='mark-all-btn' onclick='markAllNotificationsRead()'>全部已讀</button>
+        <div id='notificationList' class='notification-list'>
+          <div class='loading-container'>
+            <div class='loading-spinner'></div>
+          </div>
+        </div>
+        <button onclick='hideAllPages();document.getElementById("dashboard").style.display="block";'
+          class='return-btn'>返回首頁</button>
+      </div>
+    </div>
+
+
+
+    <div id="msCoinZonePage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">數資幣專區</h2>
+        <div id="msCoinDataContainer">
+          <p class="text-center">載入中...</p>
+        </div>
+        <p id="msCoinRemaining" class="text-sm text-gray-600"></p> <!-- 保持現有的剩餘可兌換金額顯示 -->
+        <div class="mt-4 space-y-4">
+          <button onclick="showMsCoinExchange()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">數資幣兌換</button>
+          <button onclick="showCashExchange()"
+            class="w-full btn bg-green-500 text-white p-responsive-3 rounded-btn hover:bg-green-700">現金兌換</button>
+          <button onclick="showMsCoinTransfer()"
+            class="w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700">數資幣轉帳</button>
+          <!-- 新增按鈕 -->
+          <button onclick="showMsCoinInfo()"
+            class="w-full btn bg-gray-500 text-white p-responsive-3 rounded-btn hover:bg-gray-700">說明</button>
+          <button onclick="showMsCoinPassbook()"
+            class="w-full btn bg-purple-500 text-white p-responsive-3 rounded-btn hover:bg-purple-700">數資幣存摺</button>
+        </div>
+        <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+          class="w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">回首頁</button>
+      </div>
+    </div>
+
+    <div id="msCoinPassbookPage" class="hidden">
+      <div id="msCoinPassbookContainer"></div>
+      <button onclick="backToMsCoinZoneFromPassbook()"
+        class="w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">返回數資幣專區</button>
+    </div>
+
+    <!-- 成績查詢頁面 -->
+    <div id="scoreQueryPage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">成績查詢（平時成績）</h2>
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium">選擇科目</label>
+          <select id="subjectSelect" class="w-full p-2 border rounded mt-1" onchange="loadSubjectScores()">
+            <option value="">請選擇科目</option>
+            <!-- 科目選項將動態填充 -->
+          </select>
+        </div>
+        <div id="scoreTableContainer">
+          <p class="text-center">請選擇科目</p>
+        </div>
+        <div id="teacherButtonContainer" class="mt-4"></div>
+        <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+          class="w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">回首頁</button>
+      </div>
+    </div>
+    <div id="gradeRegistrationPage" class="hidden"></div>
+    <div id="teacherGradeManagementPage" class="hidden"></div>
+    <div id="createGradeRegistrationPage" class="hidden"></div>
+    <div id="gradeRecordsPage" class="hidden"></div>
+    <div id="gradeModificationPage" class="hidden"></div>
+    <!-- 小老師查詢全班成績 Modal -->
+    <div id="teacherModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+      <div class="bg-white p-6 rounded-btn shadow-lg max-w-3xl mx-auto">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">小老師查詢全班成績</h2>
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium">選擇科目</label>
+          <select id="teacherSubjectSelect" class="w-full p-2 border rounded mt-1" onchange="loadClassScores()">
+            <!-- 小老師科目選項將動態填充 -->
+          </select>
+        </div>
+        <div class="scrollable-table">
+          <div id="classScoreTableContainer">
+            <p class="text-center">請選擇科目</p>
+          </div>
+        </div>
+        <button onclick="closeTeacherModal()"
+          class="w-full btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">關閉</button>
+      </div>
+    </div>
+
+    <!-- 班費查詢頁面 -->
+    <div id="classFeeQueryPage" class="hidden">
+      <h2 class='class-fee-title'>班費查詢</h2>
+      <div class='class-fee-controls'>
+        <label>每頁顯示: </label>
+        <select id='classFeePerPageSelect' onchange='changeClassFeePerPage()' class="class-fee-select">
+          <option value='10'>10</option>
+          <option value='20'>20</option>
+          <option value='30'>30</option>
+          <option value='50'>50</option>
+        </select>
+      </div>
+      <div id='classFeeTable' class='class-fee-table-container'>
+        <p class='text-center'>載入中...</p>
+      </div>
+      <button onclick='backToDashboardFromClassFee()' class='class-fee-btn'>回首頁</button>
+    </div>
+
+    <!-- 班費請款頁面 -->
+    <div id="classFeeRequestPage" class="hidden">
+      <div class='class-fee-request-card'>
+        <h2 class='class-fee-request-title'>班費請款申請</h2>
+        <div class='class-fee-request-field'>
+          <label class='class-fee-request-label'>請款原因</label>
+          <input type='text' id='cfRequestReason' class='class-fee-request-input' />
+        </div>
+        <div class='class-fee-request-field'>
+          <label class='class-fee-request-label'>請款金額</label>
+          <input type='number' id='cfRequestAmount' class='class-fee-request-input' />
+        </div>
+        <p id='cfRequestError' class='error-text hidden'></p>
+        <div class='class-fee-request-buttons'>
+          <button onclick='hideAllPages();document.getElementById("dashboard").style.display="block";'
+            class='class-fee-request-cancel'>取消</button>
+          <button onclick='submitClassFeeRequestForm()' class='class-fee-request-submit'>確定請款</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 服務條款與隱私政策頁面 -->
+    <div id="serviceTermsPage" class="hidden">
+      <div class="service-terms-card">
+        <h2 class="service-terms-title">服務條款與隱私政策</h2>
+        <p class="service-terms-text">
+          歡迎使用本服務系統（以下稱「本系統」）。使用本系統前，請您仔細閱讀以下服務條款與隱私政策。使用本系統即表示您同意與115級鳳山高中數理資優班餐費及班費綁定(系統得經班級之規定或慣例自行扣款)並願意遵守以下條款與政策。
+        </p>
+        <h3 class="service-terms-subtitle">一、服務內容</h3>
+        <p class="service-terms-text">本系統提供帳號紀錄查詢、公告查詢、成績查詢、班費查詢、轉帳服務、電子存摺查詢等功能，並採用先進的安全技術保護您的資料。</p>
+        <h3 class="service-terms-subtitle">二、使用者責任</h3>
+        <p class="service-terms-text">您應妥善保管您的帳號與密碼，不得將帳號與密碼提供他人使用。如發現未經授權的使用或其他安全問題，請立即通知我們。</p>
+        <h3 class="service-terms-subtitle">三、隱私政策</h3>
+        <p class="service-terms-text">本系統非常重視使用者隱私，僅收集提供服務所必須的資訊。所有密碼均採用 SHA256
+          演算法加密，確保您的密碼不會以明文形式儲存。另外我們將採取合理措施防止未經授權的存取、使用或洩露您的個人資料。</p>
+        <h3 class="service-terms-subtitle">四、智慧財產權</h3>
+        <p class="service-terms-text">本系統所有內容（包括文字、圖片、程式碼等）均屬於本系統或相關權利人所有，未經授權不得轉載或使用。</p>
+        <h3 class="service-terms-subtitle">五、免責聲明</h3>
+        <p class="service-terms-text">
+          本系統本網站會盡量確保資訊正確，另外使用外掛或不合法之程式登入本系統而產生的任何損失或損害，本系統不負責任。在法律允許範圍內，我們不保證服務之連續性(處於閒置狀態時，每10秒鐘才會更新一次資料)或無錯誤性。</p>
+        <p class="service-terms-text"> 本網站於下列情形之一時，得暫停或中斷本服務之部分或全部服務，且對使用者任何直接或間接之損害，不承擔任何責任：</p>
+        <p class="service-terms-text">(a) 對於本網站相關系統設備進行遷移、更換或維護時</p>
+        <p class="service-terms-text">(b) 任何不可歸責於之事由所造成之服務停止或中斷</p>
+        <p class="service-terms-text">(c) 天災或其他不可抗力造成本網站之服務停止或中斷</p>
+        <p class="service-terms-text">(d) 使用者有任何違反政府法令或本使用條款情事</p>
+        <h3 class="service-terms-subtitle">六、條款變更</h3>
+        <p class="service-terms-text">本系統保留隨時修改本服務條款與隱私政策之權利。修改後的條款將於公告後3日生效，請定期查閱公告以確保您了解最新內容。</p>
+        <p class="service-terms-text">若您對本服務條款或隱私政策有任何疑問，歡迎與我們聯繫。</p>
+        <button onclick='hideAllPages();document.getElementById("dashboard").style.display="block";'
+          class='service-terms-btn'>返回首頁</button>
+      </div>
+    </div>
+    <!-- 其它功能頁面 -->
+    <div id="incompleteFeaturesPage" class="hidden"></div>
+
+    <!-- 管理頁面 (僅限管理員) -->
+    <div id="adminPage" class="hidden">
+      <div class="p-1 bg-white rounded-btn w-[100%] mx-auto responsive-card">
+        <div class="flex flex-col items-center">
+          <!-- 小貼圖 -->
+          <img src="https://cdn-icons-png.flaticon.com/512/1256/1256650.png" alt="Admin Sticker"
+            class="w-16 h-16 mb-3" />
+          <h2 class="text-2xl font-bold text-gray-700 mb-4 text-center">管理頁面</h2>
+        </div>
+        <!-- 存款登記及提款登記按鈕 -->
+        <div class="flex flex-col space-y-4">
+          <button onclick="showAdminDepositPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">存款登記</button>
+          <button onclick="showAdminWithdrawPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">提款登記</button>
+          <button onclick="showAdminResetPasswordPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">重設密碼</button>
+          <button onclick="showAdminClassFeeConfirmPage();"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">班費請款確認</button>
+          <button onclick="showAdminBankTransferPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">銀行現金調度</button>
+          <button onclick="showAdminClassFeeCollectionPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700">班費收款</button>
+          <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-700 mt-4">
+            回首頁 </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 管理登記：存款 -->
+    <div id="adminDepositPage" class="hidden">
+      <div class="admin-container">
+        <h2 class="admin-title">存款登記</h2>
+        <table class="admin-table">
+          <thead class="admin-thead">
+            <tr>
+              <th class="admin-th">帳號</th>
+              <th class="admin-th">原因</th>
+              <th class="admin-th">變更金額</th>
+            </tr>
+          </thead>
+          <tbody class="admin-tbody">
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowAccount_0" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowReason_0" /></td>
+              <td class="admin-td">
+                <div class="admin-select-wrapper">
+                  <select class="admin-select" id="deposit_rowAmount_0" style="color: #686868;"
+                    onchange="this.style.color = this.value == '' ? '#686868' : '#1f2937'">
+                    <option value="" style="color: #686868;">請選擇金額</option>
+                    <option value="50" style="color: #1f2937;">50</option>
+                    <option value="100" style="color: #1f2937;">100</option>
+                    <option value="200" style="color: #1f2937;">200</option>
+                    <option value="500" style="color: #1f2937;">500</option>
+                    <option value="1000" style="color: #1f2937;">1000</option>
+                  </select>
+                  <div class="admin-select-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowAccount_1" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowReason_1" /></td>
+              <td class="admin-td">
+                <div class="admin-select-wrapper">
+                  <select class="admin-select" id="deposit_rowAmount_1" style="color: #686868;"
+                    onchange="this.style.color = this.value == '' ? '#686868' : '#1f2937'">
+                    <option value="" style="color: #686868;">請選擇金額</option>
+                    <option value="50" style="color: #1f2937;">50</option>
+                    <option value="100" style="color: #1f2937;">100</option>
+                    <option value="200" style="color: #1f2937;">200</option>
+                    <option value="500" style="color: #1f2937;">500</option>
+                    <option value="1000" style="color: #1f2937;">1000</option>
+                  </select>
+                  <div class="admin-select-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowAccount_2" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowReason_2" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="deposit_rowAmount_2" /></td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowAccount_3" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowReason_3" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="deposit_rowAmount_3" /></td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowAccount_4" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="deposit_rowReason_4" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="deposit_rowAmount_4" /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div id="deposit_adminDepositError" class="admin-error"></div>
+        <br>
+        <div class="admin-footer">
+          <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+            class="admin-btn-back">回首頁</button>
+          <button onclick="confirmAdminDeposit()" class="admin-btn-confirm">確認紀錄</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 管理登記：提款 -->
+    <div id="adminWithdrawPage" class="hidden">
+      <div class="admin-container">
+        <h2 class="admin-title">提款登記</h2>
+        <table class="admin-table">
+          <thead class="admin-thead">
+            <tr>
+              <th class="admin-th">帳號</th>
+              <th class="admin-th">原因</th>
+              <th class="admin-th">變更金額</th>
+            </tr>
+          </thead>
+          <tbody class="admin-tbody">
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowAccount_0" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowReason_0" /></td>
+              <td class="admin-td">
+                <div class="admin-select-wrapper">
+                  <select class="admin-select" id="withdraw_rowAmount_0" style="color: #686868;"
+                    onchange="this.style.color = this.value == '' ? '#686868' : '#1f2937'">
+                    <option value="" style="color: #686868;">請選擇金額</option>
+                    <option value="50" style="color: #1f2937;">50</option>
+                    <option value="100" style="color: #1f2937;">100</option>
+                    <option value="200" style="color: #1f2937;">200</option>
+                    <option value="500" style="color: #1f2937;">500</option>
+                    <option value="1000" style="color: #1f2937;">1000</option>
+                  </select>
+                  <div class="admin-select-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowAccount_1" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowReason_1" /></td>
+              <td class="admin-td">
+                <div class="admin-select-wrapper">
+                  <select class="admin-select" id="withdraw_rowAmount_1" style="color: #686868;"
+                    onchange="this.style.color = this.value == '' ? '#686868' : '#1f2937'">
+                    <option value="" style="color: #686868;">請選擇金額</option>
+                    <option value="50" style="color: #1f2937;">50</option>
+                    <option value="100" style="color: #1f2937;">100</option>
+                    <option value="200" style="color: #1f2937;">200</option>
+                    <option value="500" style="color: #1f2937;">500</option>
+                    <option value="1000" style="color: #1f2937;">1000</option>
+                  </select>
+                  <div class="admin-select-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowAccount_2" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowReason_2" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="withdraw_rowAmount_2" /></td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowAccount_3" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowReason_3" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="withdraw_rowAmount_3" /></td>
+            </tr>
+            <tr class="admin-tr-body">
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowAccount_4" /></td>
+              <td class="admin-td"><input type="text" class="admin-input" id="withdraw_rowReason_4" /></td>
+              <td class="admin-td"><input type="number" class="admin-input" id="withdraw_rowAmount_4" /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div id="withdraw_adminWithdrawError" class="admin-error"></div>
+        <br>
+        <div class="admin-footer">
+          <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+            class="admin-btn-back">回首頁</button>
+          <button onclick="confirmAdminWithdraw()" class="admin-btn-confirm">確認紀錄</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 管理登記：重設密碼 -->
+    <div id="adminResetPasswordPage" class="hidden"></div>
+    <!-- 班費請款確認 (管理員) -->
+    <div id="adminClassFeeConfirmPage" class="hidden space-y-4"></div>
+    <!-- 管理登記：銀行現金調度 -->
+    <div id="adminBankTransferPage" class="hidden"></div>
+
+    <!-- 管理登記：班費收款 -->
+    <div id="adminClassFeeCollectionPage" class="hidden"></div>
+
+    <!-- 系統設定頁面 -->
+    <div id="settingsPage" class="hidden">
+      <div class="p-1 bg-white rounded-btn w-[100%] mx-auto responsive-card">
+        <h1 class="text-[170%] font-bold mb-4 text-center">系統設定</h1>
+        <!--黑白設定-->
+        <div class="mb-6">
+          <label class="setword">主題模式</label>
+          <div class="flex items-center">
+            <span class="mr-3">淺色模式</span>
+            <label class="switch relative inline-block w-10 mr-3 align-middle select-none">
+              <!-- 勾選代表「深色模式」，未勾選為「白色模式」 -->
+              <input type="checkbox" id="themeToggle" class="sr-only peer" onchange="toggleTheme()" />
+              <span
+                class="slider round absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 peer-checked:bg-green-500 transition"></span>
+            </label>
+            <span>深色模式</span>
+          </div>
+        </div>
+        <!-- 調裝置模式 -->
+        <div class="mb-6">
+          <label class="setword">裝置模式</label>
+          <div class="flex items-center">
+            <span class="mr-3">手機版</span>
+            <label class="switch relative inline-block w-10 mr-3 align-middle select-none">
+              <input type="checkbox" id="deviceToggle" class="sr-only peer" onchange="toggleDeviceView()" />
+              <span
+                class="slider round absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 peer-checked:bg-green-500 transition"></span>
+            </label>
+            <span>電腦版</span>
+          </div>
+        </div>
+
+        <!-- 推播通知開關 -->
+        <div class="mb-6">
+          <label class="setword">推播通知🔔</label>
+          <div class="flex items-center">
+            <span class="mr-3">關</span>
+            <label class="switch relative inline-block w-10 mr-3 align-middle select-none">
+              <!-- 勾選代表「開啟通知」，未勾選為「關閉通知」 -->
+              <input type="checkbox" id="notificationsToggle" class="sr-only peer" onchange="toggleNotifications()" />
+              <span
+                class="slider round absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 peer-checked:bg-green-500 transition"></span>
+            </label>
+            <span>開</span>
+          </div>
+        </div>
+
+        <!-- 字體大小切換 -->
+        <div class="mb-6">
+          <label for="fontSizeSelect" class="setword">字體大小</label>
+          <select id="fontSizeSelect" class="wordbs" onchange="changeFontSize()">
+            <option value="normal" selected>普通</option>
+            <option value="small">小</option>
+            <option value="large">大</option>
+          </select>
+        </div>
+
+        <!-- 服務條款說明 -->
+        <div class="mb-6">
+          <button onclick="showServiceTerms()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-600">📃服務條款</button>
+        </div>
+        <div class="mb-6">
+          <button onclick="showLineBindingPage()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-600">🔗LINE 帳號綁定</button>
+        </div>
+
+
+        <!-- 編輯資料按鈕（先留空功能） editUserData()等著用-->
+        <div class="mb-6">
+          <button onclick="showChangePassword()"
+            class="w-full btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-600">編輯個人資料/密碼修改</button>
+        </div>
+
+        <!-- 返回首頁按鈕 -->
+        <button onclick="hideAllPages(); document.getElementById('dashboard').style.display='block';"
+          class="w-full btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700 mt-4">回首頁</button>
+      </div>
+    </div>
+
+    <!-- AI頁面設置 -->
+    <div id="GeminiAi" class="hidden">
+      <div class="chat-container ">
+        <div class="chat-header">
+          <button id="clear-button" class="clear-button">清除對話</button>
+          <div class="chat-title">Gemini 聊天助手</div>
+          <button onclick="hideAllPages(); document.getElementById('dashboard').style.display='block';"
+            class="back-button">回首頁</button>
+          <div style="width: 10px;"></div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="message ai-message">
+            <div class="message-content">
+              你好！我是 Gemini 聊天助手。請問有什麼我能幫助你的嗎？請注意，我沒有延續性，每一次交談都是新對話！
+            </div>
+          </div>
+          <div class="typing-indicator" id="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="user-input" placeholder="輸入您的問題...">
+          <button id="send-button">發送</button>
+        </div>
+      </div>
+    </div>
+    <!-- 移除 GAS 語法，本地執行不支援 -->
+    <!-- <?!= HtmlService.createHtmlOutputFromFile('Gemini(JS)').getContent(); ?> -->
+
+
+    <!-- LINE 綁定頁面區塊 -->
+    <div id="lineBindingPage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn w-[90%] mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">LINE 帳號綁定</h2>
+        <div id="lineBindingContent" class="mb-4 text-center">
+          <!-- 動態內容將由 JavaScript 填充 -->
+        </div>
+        <button onclick="hideAllPages(); document.getElementById('settingsPage').style.display='block';"
+          class="w-full btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700 mt-4">返回設定</button>
+      </div>
+    </div>
+    <!-- stockZonePage -->
+    <div id="stockZonePage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">股票專區</h2>
+
+        <!-- 股票選擇下拉選單 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">選擇股票</label>
+          <select id="stockSelect" class="w-full p-2 border rounded-lg" onchange="loadStockInfo()">
+            <option value="">請選擇股票</option>
+          </select>
+        </div>
+
+        <!-- 股票資訊區域 -->
+        <div id="stockInfoContainer" class="mb-6 hidden">
+          <h3 id="stockNameDisplay" class="text-lg font-semibold mb-2 text-center"></h3>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="text-gray-600">總發行股數：</div>
+            <div id="totalShares" class="text-right font-semibold"></div>
+            <div class="text-gray-600">流通股數：</div>
+            <div id="circulatingShares" class="text-right font-semibold"></div>
+            <div class="text-gray-600">資本額：</div>
+            <div id="pricePerShare" class="text-right font-semibold"></div>
+            <div class="text-gray-600">最新成交價：</div>
+            <div id="latestPrice" class="text-right font-semibold"></div>
+            <div class="text-gray-600">總成交量：</div>
+            <div id="totalVolume" class="text-right font-semibold"></div>
+            <div class="text-gray-600">當日開盤價：</div>
+            <div id="openPrice" class="text-right font-semibold"></div>
+            <div class="text-gray-600">漲跌：</div>
+            <div id="priceChange" class="text-right font-semibold"></div>
+            <div class="text-gray-600">更新時間：</div>
+            <div id="updateTime" class="text-right font-semibold"></div>
+          </div>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="flexdistribute justify-center space-x-4 mb-6">
+          <button onclick="refreshAll()"
+            class="btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-600">刷新資訊</button>
+          <button onclick="showQuickOrder()"
+            class="btn bg-blue-500 text-white p-responsive-3 rounded-btn hover:bg-blue-600">快速下單</button>
+        </div>
+
+        <button onclick="hideAllPages();document.getElementById('dashboard').style.display='block';"
+          class="w-full btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700 mt-4">回首頁</button>
+      </div>
+    </div>
+
+    <!-- 快速下單頁面 -->
+    <div id="quickOrderPage" class="hidden">
+      <div class="p-6 bg-white shadow-lg rounded-btn max-w-3xl mx-auto responsive-card">
+        <h2 class="text-[clamp(1.25rem,7.2cqw,2.5rem)] font-bold mb-4 text-center">快速下單</h2>
+
+        <!-- 商品名稱 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">選擇股票</label>
+          <select id="quickOrderStockSelect" class="w-full p-2 border rounded-lg">
+            <option value="">請選擇股票</option>
+          </select>
+        </div>
+
+        <!-- 交易類型 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">交易</label>
+          <div class="flex space-x-2">
+            <button id="tradeWhole" onclick="selectTradeType('whole')"
+              class="btn bg-blue-500 text-white p-2 rounded-btn flex-1 active-trade">整股</button>
+            <button id="tradeAfter" onclick="selectTradeType('after')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">盤後</button>
+            <button id="tradeOdd" onclick="selectTradeType('odd')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">零股</button>
+          </div>
+        </div>
+
+        <!-- 種類 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">種類</label>
+          <div class="flex space-x-2">
+            <button id="typeSpot" onclick="selectTradeKind('spot')"
+              class="btn bg-blue-500 text-white p-2 rounded-btn flex-1 active-trade">現股</button>
+            <button id="typeMargin" onclick="selectTradeKind('margin')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">融資</button>
+            <button id="typeShort" onclick="selectTradeKind('short')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">融券</button>
+          </div>
+        </div>
+
+        <!-- 條件 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">條件</label>
+          <div class="flex space-x-2">
+            <button id="conditionROC" onclick="selectCondition('roc')"
+              class="btn bg-blue-500 text-white p-2 rounded-btn flex-1 active-trade">ROC</button>
+            <button id="conditionIOC" onclick="selectCondition('ioc')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">IOC</button>
+            <button id="conditionFOK" onclick="selectCondition('fok')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">FOK</button>
+          </div>
+        </div>
+
+        <!-- 類別 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">類別</label>
+          <div class="flex space-x-2 items-center">
+            <button id="priceLimit" onclick="selectPriceType('limit')"
+              class="btn bg-blue-500 text-white p-2 rounded-btn flex-1 active-trade">限價</button>
+            <button id="priceMarket" onclick="selectPriceType('market')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">市價</button>
+            <select id="priceOption" class="p-2 border rounded-btn flex-1" disabled>
+              <option value="limit">現價</option>
+              <option value="upper">漲停</option>
+              <option value="flat">平盤</option>
+              <option value="lower">跌停</option>
+            </select>
+          </div>
+        </div>
+
+
+
+        <!-- 買賣 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">買賣</label>
+          <div class="flex space-x-2">
+            <button id="actionBuy" onclick="selectAction('buy')"
+              class="btn bg-blue-500 text-white p-2 rounded-btn flex-1 active-trade">買進</button>
+            <button id="actionSell" onclick="selectAction('sell')"
+              class="btn bg-gray-400 text-white p-2 rounded-btn flex-1">賣出</button>
+          </div>
+        </div>
+
+        <!-- 單位 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">數量(張)</label>
+          <div class="flex space-x-2 items-center">
+            <button onclick="adjustQuantity(-1)" class="btn bg-gray-500 text-white p-2 rounded-lg">-</button>
+            <input type="number" id="quantity" value="1" min="1" class="w-full p-2 border rounded-btn text-center" />
+            <button onclick="adjustQuantity(1)" class="btn bg-gray-500 text-white p-2 rounded-lg">+</button>
+          </div>
+        </div>
+        <!-- 價格 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">價格(億數資幣)</label>
+          <div class="flex space-x-2 items-center">
+            <button onclick="adjustPrice(-1)" class="btn bg-gray-500 text-white p-2 rounded-lg">-</button>
+            <input type="number" id="price" value="1" min="1" class="w-full p-2 border rounded-btn text-center"
+              oninput="handlePriceChange()" />
+            <button onclick="adjustPrice(1)" class="btn bg-gray-500 text-white p-2 rounded-lg">+</button>
+          </div>
+        </div>
+
+        <!-- 預留成交明細 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">成交明細</label>
+          <div id="tradeDetails" class="p-responsive-3 border rounded-btn text-center">預留成交明細</div>
+        </div>
+
+        <!-- 預留五檔股票 -->
+        <div class="mb-4">
+          <label class="block text-gray-600 text-sm font-medium mb-2">五檔報價</label>
+          <div id="fiveLevelQuotes" class="p-responsive-3 border rounded-btn text-center">預留五檔股票</div>
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="mt-6 flex justify-between">
+          <button onclick="hideAllPages();document.getElementById('stockZonePage').style.display='block';"
+            class="w-5/12 btn bg-gray-600 text-white p-responsive-3 rounded-btn hover:bg-gray-700">取消</button>
+          <button onclick="submitQuickOrder()"
+            class="w-5/12 btn bg-blue-600 text-white p-responsive-3 rounded-btn hover:bg-blue-700">下單</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 直接數資幣轉帳確認視窗 (非 alert) -->
+  <div id="directMsCoinTransferConfirmModal"
+    class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p id="directMsCoinTransferConfirmText" class="mb-4 text-lg"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelDirectMsCoinTransferConfirm()"
+          class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmDirectMsCoinTransfer()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定轉帳</button>
+      </div>
+    </div>
+  </div>
+  <!-- 數資幣轉帳確認視窗 (非 alert) -->
+  <div id="msCoinTransferConfirmModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p id="msCoinTransferConfirmText" class="mb-4 text-lg"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelMsCoinTransferConfirm()"
+          class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmMsCoinTransfer()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定轉帳</button>
+      </div>
+    </div>
+  </div>
+  <!-- 以分數（新臺幣）數資幣轉帳確認視窗 (非 alert) -->
+  <div id="fracMsCoinTransferConfirmModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p id="fracMsCoinTransferConfirmText" class="mb-4 text-lg"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelFractionalMsCoinTransferConfirm()"
+          class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmFractionalMsCoinTransfer()"
+          class="btn bg-blue-600 text-white p-2 rounded-lg">確定轉帳</button>
+      </div>
+    </div>
+  </div>
+  <!-- 轉帳確認視窗 (非 alert) -->
+  <div id="transferConfirmModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p id="transferConfirmText" class="mb-4 text-lg"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelTransferConfirm()" class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmTransfer()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定轉帳</button>
+      </div>
+    </div>
+  </div>
+  <!-- 轉帳中模態視窗 -->
+  <div id="transferProcessingModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg w-80">
+      <p class="mb-4 text-lg text-center">轉帳處理中，請稍候...</p>
+      <div class="relative flex justify-center items-center h-24">
+        <!-- 錢幣圖標 -->
+        <div id="moneyIcon" class="text-4xl">💸</div>
+        <!-- 箭頭動畫 -->
+        <div class="arrow arrow1">➡️</div>
+        <div class="arrow arrow2">➡️</div>
+        <div class="arrow arrow3">➡️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 轉帳成功模態視窗 -->
+  <div id="transferSuccessModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p class="mb-4 text-lg text-center">轉帳成功！</p>
+      <div class="flex justify-center">
+        <button onclick="closeTransferSuccessModal()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定</button>
+      </div>
+    </div>
+  </div>
+  <!-- 重設確認視窗 (非 alert) -->
+  <div id="resetConfirmModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p id="resetConfirmText" class="mb-4 text-lg"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelResetConfirm()" class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmReset()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定</button>
+      </div>
+    </div>
+  </div>
+  <!-- 班費請款確認模態視窗 -->
+  <div id="classFeeConfirmModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg w-[90%] mx-auto">
+      <p id="classFeeConfirmText" class="mb-4 text-lg"></p>
+      <div class="mb-4 relative">
+        <label class="block text-gray-600 text-sm font-medium">請輸入管理員密碼以確認</label>
+        <div class="relative">
+          <input type="password" id="classFeeAdminPassword" class="w-full p-2 border rounded mt-1 pr-8" />
+          <span class="toggle-eye" onmousedown="togglePassword('classFeeAdminPassword', true)"
+            onmouseup="togglePassword('classFeeAdminPassword', false)"
+            ontouchstart="togglePassword('classFeeAdminPassword', true)"
+            ontouchend="togglePassword('classFeeAdminPassword', false)">👁️</span>
+        </div>
+      </div>
+      <p id="classFeeConfirmError" class="text-red-500 text-sm mb-4 hidden"></p>
+      <div class="flex justify-between">
+        <button onclick="cancelClassFeeConfirm()" class="btn bg-gray-600 text-white p-2 rounded-btn mr-2">取消</button>
+        <button onclick="confirmClassFeeAction()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定</button>
+      </div>
+    </div>
+
+  </div>
+  <!-- 結帳中模態視窗 -->
+  <div id="cashierProcessingModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg w-80">
+      <p class="mb-4 text-lg text-center">結帳處理中，請稍候...</p>
+      <div class="relative flex justify-center items-center h-24">
+        <!-- 購物車圖標 -->
+        <div id="cartIcon" class="text-4xl">🛒</div>
+        <!-- 硬幣動畫 -->
+        <div class="coin coin1">💰</div>
+        <div class="coin coin2">💰</div>
+        <div class="coin coin3">💰</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結帳成功模態視窗（保持不變） -->
+  <div id="cashierSuccessModal" class="fixed inset-0 modal-overlay hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-btn shadow-lg">
+      <p class="mb-4 text-lg text-center">結帳成功！</p>
+      <div class="flex justify-center">
+        <button onclick="closeCashierSuccessModal()" class="btn bg-blue-600 text-white p-2 rounded-lg">確定</button>
+      </div>
+    </div>
+  </div>
+  <!-- 班費收款確認模態框 -->
+  <div id="classFeeCollectionConfirmModal"
+    class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-btn shadow-lg w-[90%] w-full">
+      <h3 class="text-lg font-bold mb-4">確認班費繳交</h3>
+      <p class="text-gray-600 mb-4">您確定要確認以下學號的班費繳交？</p>
+      <ul id="confirmStudentList" class="list-disc pl-5 mb-4 max-h-40 overflow-y-auto"></ul>
+      <div class="flex justify-end space-x-4">
+        <button onclick="closeConfirmModal()"
+          class="btn bg-gray-500 text-white p-2 rounded-btn hover:bg-gray-600">取消</button>
+        <button onclick="submitClassFeeCollection()"
+          class="btn bg-green-600 text-white p-2 rounded-btn hover:bg-green-700">確認</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

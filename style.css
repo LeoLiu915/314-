@@ -1,0 +1,1094 @@
+/* <style>
+  */
+body {
+  background: linear-gradient(135deg, #bfdbeb, #ccebd0);
+}
+
+/* 標準樣式 */
+.card {
+  width: 90%;
+  margin: 0 auto;
+  max-width: 38rem;
+  max-height: 90%;
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  font-size: 1.1rem;
+}
+
+.mobile-mode .card {
+  width: 95%;
+  margin: 0 auto;
+  max-width: 200rem;
+  max-height: 95%;
+  background-color: #fff;
+  padding: 5vw;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  font-size: 2.8vw;
+}
+
+.custom-button {
+  margin-top: 12px;
+  /* 根據需要調整垂直位置 */
+  font-size: 107%;
+  /* 根據需要調整按鈕大小 */
+  text-align: right;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.setword {
+  display: block;
+  color: #4B5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.dark-mode .setword {
+  display: block;
+  color: #d2d2d2;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.wcome {
+  font-size: 107%;
+  font-weight: 700;
+  padding-left: 0.5rem;
+  color: #374151;
+  margin-top: 1rem;
+}
+
+.header123 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-container {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  /* 可根據需要調整間距 */
+}
+
+
+.dark-mode .wcome {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding-left: 0.5rem;
+  color: #e7e9ee;
+  margin-top: 1rem;
+}
+
+.wordbs,
+.wordbs option {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid;
+  border-radius: 0.75rem;
+  margin-top: 0.25rem;
+  background-color: #ffffff;
+  color: #333;
+}
+
+.dark-mode .wordbs,
+.dark-mode .wordbs option {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid;
+  border-radius: 0.75rem;
+  margin-top: 0.25rem;
+  background-color: #333;
+  color: #fff;
+}
+
+.dark-mode {
+  background: linear-gradient(135deg, #021e23, #011e14);
+  color: #dcdcdc;
+}
+
+.mobile-mode {
+  background: linear-gradient(135deg, #f4a3d6, #acd2f4);
+}
+
+.dark-mode .card {
+  background-color: #1e1d1d;
+  box-shadow: 0 10px 25px rgba(255, 255, 255, 0.269);
+}
+
+.dark-mode .p-6.bg-white {
+  background-color: #444444 !important;
+  color: #eeeeee;
+}
+
+.font-size-small {
+  font-size: 14px;
+}
+
+.font-size-normal {
+  font-size: 16px;
+}
+
+.font-size-large {
+  font-size: 20px;
+}
+
+/* 開關 (Switch) 通用樣式，可自行微調尺寸、顏色 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  border-radius: 34px;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+input:checked+.slider::before {
+  transform: translateX(18px);
+}
+
+.round {
+  border-radius: 34px;
+}
+
+
+.account-card {
+  background: linear-gradient(135deg, #b2e2e1, #aaf0d7);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000000;
+}
+
+.dark-mode .account-card {
+  background: linear-gradient(315deg, #0d99b8, #0ca871);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000000;
+}
+
+.mobile-mode .account-card {
+  background: linear-gradient(135deg, #c7dcee, #c4e6f1);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000000;
+}
+
+.card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* 上下間距 */
+  align-items: flex-start;
+  /* 確保元素左對齊 */
+}
+
+.balance-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 107%;
+  color: #000000;
+  margin-right: 15px;
+}
+
+.numberNT {
+  font-size: 170%;
+  font-weight: bold;
+  color: #1D4ED8;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.numberMS {
+  font-size: 120%;
+  font-weight: bold;
+  color: #6429ef;
+  margin-top: -15px;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+
+.main_button {
+  border-radius: 8px;
+  font-size: 115%
+}
+
+.btn {
+  border-radius: 1.2rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: scale(1.02);
+  background-color: #aaa;
+}
+
+.icon {
+  font-size: 2em;
+  /* 可依需求調整大小 */
+}
+
+.btn:hover .icon {
+  font-size: 2em;
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* 調整眼睛圖示位置 */
+.toggle-eye {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 1.25rem;
+  user-select: none;
+  color: #555;
+}
+
+.cas {
+  margin-top: 1.5rem;
+  /* 相當於 mt-6 在 Tailwind CSS 中的設定 */
+  display: grid;
+  /* 將元素設置為網格布局 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  /* 設置網格項目之間的間距 */
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  /* 確保 Modal 整體可以滾動 */
+}
+
+#teacherModal .scrollable-table {
+  max-height: 60vh;
+  /* 限制表格高度為視窗的 60% */
+  overflow-y: auto;
+  /* 啟用垂直滾動 */
+  overflow-x: auto;
+  /* 若表格過寬，啟用水平滾動 */
+}
+
+
+
+
+
+#msCoinEquivalent {
+  font-size: 0.875rem;
+  /* 小一點的文字 */
+  color: #4a5568;
+  /* 中等灰色，與標籤顏色一致 */
+  margin-top: 0.25rem;
+  /* 小間距 */
+}
+
+.dark-mode #msCoinEquivalent {
+  color: #a0aec0;
+  /* 深色模式下的淺灰色 */
+}
+
+.githubicon-container {
+  display: flex;
+  align-items: center;
+  /* 垂直居中 */
+  justify-content: center;
+  /* 水平居中 */
+  width: 100%;
+  /* 按鈕的寬度 */
+  margin-bottom: -20px;
+  /* 調整這個值來縮短距離 */
+  margin-top: 10px;
+  /* 調整這個值來縮短距離 */
+}
+
+.githubicon {
+  width: 40%;
+  height: auto;
+  display: block;
+  /* 確保圖片成為塊級元素 */
+  margin: 0 auto;
+  /* 中心對齊 */
+  padding-bottom: 0;
+  /* 移除底部內邊距 */
+}
+
+.active-trade {
+  background-color: #3b82f6 !important;
+  /* Tailwind bg-blue-500 */
+  font-weight: bold;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  /* 灰色邊框 */
+  border-top: 4px solid #3498db;
+  /* 藍色旋轉部分 */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+/* 硬幣樣式和動畫 */
+.coin {
+  position: absolute;
+  font-size: 20px;
+  opacity: 0;
+  animation: dropCoin 1.5s infinite;
+}
+
+.coin1 {
+  left: 30%;
+  animation-delay: 0s;
+}
+
+.coin2 {
+  left: 50%;
+  animation-delay: 0.5s;
+}
+
+.coin3 {
+  left: 70%;
+  animation-delay: 1s;
+}
+
+@keyframes dropCoin {
+  0% {
+    transform: translateY(-50px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+}
+
+/* 購物車微微抖動效果 */
+#cartIcon {
+  animation: shakeCart 0.5s infinite;
+}
+
+@keyframes shakeCart {
+  0% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-2px);
+  }
+
+  50% {
+    transform: translateX(2px);
+  }
+
+  75% {
+    transform: translateX(-2px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.arrow {
+  position: absolute;
+  font-size: 24px;
+  opacity: 0;
+  animation: moveArrow 1.5s infinite;
+}
+
+.arrow1 {
+  animation-delay: 0s;
+}
+
+.arrow2 {
+  animation-delay: 0.5s;
+}
+
+.arrow3 {
+  animation-delay: 1s;
+}
+
+@keyframes moveArrow {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(20px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+/* 手機版存款與提款登記頁面優化 */
+.mobile-mode .admin-container {
+  max-width: none !important;
+  width: 100% !important;
+  padding: 2.5vw !important;
+  box-shadow: none !important;
+}
+
+.mobile-mode .admin-title {
+  font-size: 6vw !important;
+  margin-bottom: 4vw !important;
+}
+
+.mobile-mode .admin-table {
+  font-size: 3.2vw !important;
+  margin-bottom: 5vw !important;
+}
+
+.mobile-mode .admin-th,
+.mobile-mode .admin-td {
+  padding: 1.5vw !important;
+}
+
+.mobile-mode .admin-input,
+.mobile-mode .admin-select,
+.mobile-mode .admin-password-input {
+  font-size: 3.2vw !important;
+  padding: 2.5vw 1.5vw !important;
+  height: auto !important;
+}
+
+.mobile-mode .admin-label {
+  font-size: 4vw !important;
+}
+
+.mobile-mode .admin-btn-back,
+.mobile-mode .admin-btn-confirm {
+  font-size: 4.5vw !important;
+  padding: 4vw !important;
+}
+
+/* 傳統 CSS 樣式：管理員登記頁面 */
+.admin-container {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 0.75rem;
+  max-width: 56rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.admin-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.admin-table {
+  min-width: 100%;
+  margin-bottom: 1.5rem;
+  background-color: #f9fafb;
+  border-radius: 0.75rem;
+  border: 1px solid #f3f4f6;
+  overflow: hidden;
+  border-collapse: collapse;
+}
+
+.admin-thead {
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #ffffff;
+}
+
+.admin-th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #4b5563;
+  letter-spacing: 0.05em;
+  width: 33.333333%;
+  border-right: 1px solid #ffffff;
+}
+
+.admin-th:last-child {
+  border-right: none;
+}
+
+.admin-tr-body {
+  border-bottom: 1px solid #ffffff;
+  transition: background-color 0.15s;
+}
+
+.admin-tr-body:hover {
+  background-color: #e5e7eb;
+}
+
+.admin-td {
+  padding: 0;
+  border-right: 1px solid #ffffff;
+}
+
+.admin-td:last-child {
+  border-right: none;
+}
+
+.admin-input,
+.admin-select {
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.admin-input:focus,
+.admin-select:focus {
+  background-color: #ffffff !important;
+  box-shadow: inset 0 0 0 2px #60a5fa !important;
+}
+
+.admin-select-wrapper {
+  position: relative;
+  height: 100%;
+}
+
+.admin-select {
+  cursor: pointer;
+  appearance: none;
+}
+
+.admin-select-icon {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  color: #9ca3af;
+}
+
+.admin-select-icon svg {
+  fill: currentColor;
+  height: 1rem;
+  width: 1rem;
+}
+
+.admin-label {
+  display: block;
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.admin-password-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.admin-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  display: none;
+}
+
+.admin-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-btn-back,
+.admin-btn-confirm {
+  width: 41.666667%;
+  /* 5/12 */
+  padding: 0.75rem !important;
+  border-radius: 0.5rem !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  border: none !important;
+}
+
+.admin-btn-back {
+  background-color: #2563eb !important;
+}
+
+.admin-btn-back:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.admin-btn-confirm {
+  background-color: #16a34a !important;
+}
+
+.admin-btn-confirm:hover {
+  background-color: #15803d !important;
+}
+
+/* Service Terms Styles extracted from JS HTML tailwind classes */
+.service-terms-card {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.service-terms-title {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.service-terms-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.service-terms-text {
+  margin-bottom: 1rem;
+}
+
+.service-terms-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.service-terms-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Passbook extracted Styles */
+.passbook-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.passbook-controls {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.passbook-select {
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.passbook-table-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.passbook-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.passbook-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.passbook-pagination {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.passbook-page-btn {
+  padding: 0.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.passbook-page-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Return Button (for Personal Notifications, etc) */
+.return-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #ef4444;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  text-align: center;
+}
+
+.return-btn:hover {
+  background-color: #dc2626;
+}
+
+/* Account Records Styles */
+.account-records-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.account-records-controls {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.account-records-select {
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.account-records-table-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.account-records-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.account-records-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.account-records-pagination {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.account-records-page-btn {
+  padding: 0.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.account-records-page-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Class Fee Query Styles */
+.class-fee-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.class-fee-controls {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.class-fee-select {
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.class-fee-table-container {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.class-fee-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.class-fee-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.class-fee-pagination {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.class-fee-page-btn {
+  padding: 0.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.class-fee-page-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Class Fee Request Styles */
+.class-fee-request-card {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.class-fee-request-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.class-fee-request-field {
+  margin-bottom: 1rem;
+}
+
+.class-fee-request-label {
+  display: block;
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.class-fee-request-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.class-fee-request-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.class-fee-request-cancel {
+  width: 41.666667%;
+  padding: 0.75rem;
+  background-color: #4b5563;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.class-fee-request-cancel:hover {
+  background-color: #374151;
+}
+
+.class-fee-request-submit {
+  width: 41.666667%;
+  padding: 0.75rem;
+  background-color: #16a34a;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.class-fee-request-submit:hover {
+  background-color: #15803d;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Personal Data Styles */
+.personal-data-card {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.personal-data-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.personal-data-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.personal-data-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.responsive-card {
+  container-type: inline-size;
+}
+
+.rounded-btn {
+  border-radius: calc(1rem * (100cqw / 556) * (100cqw / 556));
+}
+
+.p-responsive-3 {
+  padding: calc(100cqw / 46.33);
+}
+
+.space-y-4> :not([hidden])~ :not([hidden]) {
+  margin-top: calc(100cqw * 16 / 556) !important;
+}
